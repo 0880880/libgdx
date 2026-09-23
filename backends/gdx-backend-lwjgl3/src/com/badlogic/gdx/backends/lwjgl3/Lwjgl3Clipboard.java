@@ -16,10 +16,8 @@
 
 package com.badlogic.gdx.backends.lwjgl3;
 
-import org.lwjgl.glfw.GLFW;
-
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Clipboard;
+import org.lwjgl.sdl.SDLClipboard;
 
 /** Clipboard implementation for desktop that uses the system clipboard via GLFW.
  * @author mzechner */
@@ -32,11 +30,11 @@ public class Lwjgl3Clipboard implements Clipboard {
 
 	@Override
 	public String getContents () {
-		return GLFW.glfwGetClipboardString(((Lwjgl3Graphics)Gdx.graphics).getWindow().getWindowHandle());
+		return SDLClipboard.SDL_GetClipboardText();
 	}
 
 	@Override
 	public void setContents (String content) {
-		GLFW.glfwSetClipboardString(((Lwjgl3Graphics)Gdx.graphics).getWindow().getWindowHandle(), content);
+		SDLClipboard.SDL_SetClipboardText(content);
 	}
 }

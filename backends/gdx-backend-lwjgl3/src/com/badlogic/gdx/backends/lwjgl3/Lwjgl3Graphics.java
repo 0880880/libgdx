@@ -24,9 +24,6 @@ import com.badlogic.gdx.Application;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWFramebufferSizeCallback;
 
 import com.badlogic.gdx.graphics.Cursor;
 import com.badlogic.gdx.graphics.Cursor.SystemCursor;
@@ -39,7 +36,9 @@ import com.badlogic.gdx.graphics.glutils.HdpiMode;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.Disposable;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.sdl.*;
 import org.lwjgl.system.Configuration;
+import org.lwjgl.system.MemoryStack;
 
 public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	final Lwjgl3Window window;
@@ -70,25 +69,19 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	IntBuffer tmpBuffer = BufferUtils.createIntBuffer(1);
 	IntBuffer tmpBuffer2 = BufferUtils.createIntBuffer(1);
 
-	GLFWFramebufferSizeCallback resizeCallback = new GLFWFramebufferSizeCallback() {
-		@Override
-		public void invoke (long windowHandle, final int width, final int height) {
-			if (!"glfw_async".equals(Configuration.GLFW_LIBRARY_NAME.get())) {
-				updateFramebufferInfo();
-				if (!window.isListenerInitialized()) {
-					return;
-				}
-				window.makeCurrent();
-				gl20.glViewport(0, 0, backBufferWidth, backBufferHeight);
-				window.getListener().resize(getWidth(), getHeight());
-				update();
-				window.getListener().render();
-				GLFW.glfwSwapBuffers(windowHandle);
-			} else {
-				window.asyncResized = true;
-			}
+	public void resizeCallback (long windowHandle) {
+		SDLVideo.SDL_SyncWindow(windowHandle);
+		updateFramebufferInfo();
+		if (!window.isListenerInitialized()) {
+			return;
 		}
-	};
+		window.makeCurrent();
+		gl20.glViewport(0, 0, backBufferWidth, backBufferHeight);
+		window.getListener().resize(getWidth(), getHeight());
+		update();
+		window.getListener().render();
+		SDLVideo.SDL_GL_SwapWindow(windowHandle);
+	}
 
 	public Lwjgl3Graphics (Lwjgl3Window window) {
 		this.window = window;
@@ -109,7 +102,6 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 		}
 		updateFramebufferInfo();
 		initiateGL();
-		GLFW.glfwSetFramebufferSizeCallback(window.getWindowHandle(), resizeCallback);
 	}
 
 	private void initiateGL () {
@@ -143,10 +135,10 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	}
 
 	void updateFramebufferInfo () {
-		GLFW.glfwGetFramebufferSize(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
+		SDLVideo.SDL_GetWindowSizeInPixels(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
 		this.backBufferWidth = tmpBuffer.get(0);
 		this.backBufferHeight = tmpBuffer2.get(0);
-		GLFW.glfwGetWindowSize(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
+		SDLVideo.SDL_GetWindowSize(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
 		Lwjgl3Graphics.this.logicalWidth = tmpBuffer.get(0);
 		Lwjgl3Graphics.this.logicalHeight = tmpBuffer2.get(0);
 		Lwjgl3ApplicationConfiguration config = window.getConfig();
@@ -307,19 +299,27 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	@Override
 	public float getPpcX () {
 		Lwjgl3Monitor monitor = (Lwjgl3Monitor)getMonitor();
-		GLFW.glfwGetMonitorPhysicalSize(monitor.monitorHandle, tmpBuffer, tmpBuffer2);
-		int sizeX = tmpBuffer.get(0);
-		DisplayMode mode = getDisplayMode();
-		return mode.width / (float)sizeX * 10;
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			SDL_Rect rect = SDL_Rect.malloc(stack);
+			SDLVideo.SDL_GetDisplayBounds(monitor.monitorHandle, rect);
+
+			int sizeY = rect.w();
+			DisplayMode mode = getDisplayMode();
+			return mode.height / (float)sizeY * 10;
+		}
 	}
 
 	@Override
 	public float getPpcY () {
 		Lwjgl3Monitor monitor = (Lwjgl3Monitor)getMonitor();
-		GLFW.glfwGetMonitorPhysicalSize(monitor.monitorHandle, tmpBuffer, tmpBuffer2);
-		int sizeY = tmpBuffer2.get(0);
-		DisplayMode mode = getDisplayMode();
-		return mode.height / (float)sizeY * 10;
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			SDL_Rect rect = SDL_Rect.malloc(stack);
+			SDLVideo.SDL_GetDisplayBounds(monitor.monitorHandle, rect);
+
+			int sizeY = rect.h();
+			DisplayMode mode = getDisplayMode();
+			return mode.height / (float)sizeY * 10;
+		}
 	}
 
 	@Override
@@ -329,7 +329,7 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 	@Override
 	public Monitor getPrimaryMonitor () {
-		return Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(GLFW.glfwGetPrimaryMonitor());
+		return Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(SDLVideo.SDL_GetPrimaryDisplay());
 	}
 
 	@Override
@@ -339,7 +339,7 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 		int windowX = window.getPositionX();
 		int windowY = window.getPositionY();
-		GLFW.glfwGetWindowSize(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
+		SDLVideo.SDL_GetWindowSize(window.getWindowHandle(), tmpBuffer, tmpBuffer2);
 		int windowWidth = tmpBuffer.get(0);
 		int windowHeight = tmpBuffer2.get(0);
 		int overlap;
@@ -362,10 +362,10 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 	@Override
 	public Monitor[] getMonitors () {
-		PointerBuffer glfwMonitors = GLFW.glfwGetMonitors();
-		Monitor[] monitors = new Monitor[glfwMonitors.limit()];
-		for (int i = 0; i < glfwMonitors.limit(); i++) {
-			monitors[i] = Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(glfwMonitors.get(i));
+		IntBuffer sdlDisplays = SDLVideo.SDL_GetDisplays();
+		Monitor[] monitors = new Monitor[sdlDisplays.limit()];
+		for (int i = 0; i < sdlDisplays.limit(); i++) {
+			monitors[i] = Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(sdlDisplays.get(i));
 		}
 		return monitors;
 	}
@@ -414,26 +414,12 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	public boolean setFullscreenMode (DisplayMode displayMode) {
 		window.getInput().resetPollingStates();
 		Lwjgl3DisplayMode newMode = (Lwjgl3DisplayMode)displayMode;
-		if (isFullscreen()) {
-			Lwjgl3DisplayMode currentMode = (Lwjgl3DisplayMode)getDisplayMode();
-			if (currentMode.getMonitor() == newMode.getMonitor() && currentMode.refreshRate == newMode.refreshRate) {
-				// same monitor and refresh rate
-				GLFW.glfwSetWindowSize(window.getWindowHandle(), newMode.width, newMode.height);
-			} else {
-				// different monitor and/or refresh rate
-				GLFW.glfwSetWindowMonitor(window.getWindowHandle(), newMode.getMonitor(), 0, 0, newMode.width, newMode.height,
-					newMode.refreshRate);
-			}
-		} else {
-			// store window position so we can restore it when switching from fullscreen to windowed later
+		if (!isFullscreen()) {
 			storeCurrentWindowPositionAndDisplayMode();
-
-			// switch from windowed to fullscreen
-			GLFW.glfwSetWindowMonitor(window.getWindowHandle(), newMode.getMonitor(), 0, 0, newMode.width, newMode.height,
-				newMode.refreshRate);
 		}
+		SDLVideo.SDL_SetWindowFullscreen(window.getWindowHandle(), true);
+		SDLVideo.SDL_SetWindowFullscreenMode(window.getWindowHandle(), newMode.displayMode);
 		updateFramebufferInfo();
-
 		setVSync(window.getConfig().vSyncEnabled);
 
 		return true;
@@ -450,14 +436,16 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 	@Override
 	public boolean setWindowedMode (int width, int height) {
 		window.getInput().resetPollingStates();
-		if (!isFullscreen()) {
+		boolean notFullscreen = !isFullscreen();
+		SDLVideo.SDL_SetWindowFullscreen(window.getWindowHandle(), false);
+		if (notFullscreen) {
 			GridPoint2 newPos = null;
 			boolean centerWindow = false;
 			if (width != logicalWidth || height != logicalHeight) {
 				centerWindow = true; // recenter the window since its size changed
 				newPos = Lwjgl3ApplicationConfiguration.calculateCenteredWindowPosition((Lwjgl3Monitor)getMonitor(), width, height);
 			}
-			GLFW.glfwSetWindowSize(window.getWindowHandle(), width, height);
+			SDLVideo.SDL_SetWindowSize(window.getWindowHandle(), width, height);
 			if (centerWindow) {
 				window.setPosition(newPos.x, newPos.y); // on macOS the centering has to happen _after_ the new window size was set
 			}
@@ -469,11 +457,9 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 				// changed
 				GridPoint2 newPos = Lwjgl3ApplicationConfiguration.calculateCenteredWindowPosition((Lwjgl3Monitor)getMonitor(), width,
 					height);
-				GLFW.glfwSetWindowMonitor(window.getWindowHandle(), 0, newPos.x, newPos.y, width, height,
-					displayModeBeforeFullscreen.refreshRate);
+				SDLVideo.SDL_SetWindowPosition(window.getWindowHandle(), newPos.x, newPos.y);
 			} else { // restore previous position
-				GLFW.glfwSetWindowMonitor(window.getWindowHandle(), 0, windowPosXBeforeFullscreen, windowPosYBeforeFullscreen, width,
-					height, displayModeBeforeFullscreen.refreshRate);
+				SDLVideo.SDL_SetWindowPosition(window.getWindowHandle(), windowPosXBeforeFullscreen, windowPosYBeforeFullscreen);
 			}
 		}
 		updateFramebufferInfo();
@@ -485,25 +471,25 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 		if (title == null) {
 			title = "";
 		}
-		GLFW.glfwSetWindowTitle(window.getWindowHandle(), title);
+		SDLVideo.SDL_SetWindowTitle(window.getWindowHandle(), title);
 	}
 
 	@Override
 	public void setUndecorated (boolean undecorated) {
 		getWindow().getConfig().setDecorated(!undecorated);
-		GLFW.glfwSetWindowAttrib(window.getWindowHandle(), GLFW.GLFW_DECORATED, undecorated ? GLFW.GLFW_FALSE : GLFW.GLFW_TRUE);
+		SDLVideo.SDL_SetWindowBordered(window.getWindowHandle(), !undecorated);
 	}
 
 	@Override
 	public void setResizable (boolean resizable) {
 		getWindow().getConfig().setResizable(resizable);
-		GLFW.glfwSetWindowAttrib(window.getWindowHandle(), GLFW.GLFW_RESIZABLE, resizable ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+		SDLVideo.SDL_SetWindowResizable(window.getWindowHandle(), resizable);
 	}
 
 	@Override
 	public void setVSync (boolean vsync) {
 		getWindow().getConfig().vSyncEnabled = vsync;
-		GLFW.glfwSwapInterval(vsync ? 1 : 0);
+		SDLVideo.SDL_GL_SetSwapInterval(vsync ? 1 : 0);
 	}
 
 	/** Sets the target framerate for the application, when using continuous rendering. Must be positive. The cpu sleeps as needed.
@@ -522,7 +508,7 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 	@Override
 	public boolean supportsExtension (String extension) {
-		return GLFW.glfwExtensionSupported(extension);
+		return SDLVideo.SDL_GL_ExtensionSupported(extension);
 	}
 
 	@Override
@@ -542,7 +528,7 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 	@Override
 	public boolean isFullscreen () {
-		return GLFW.glfwGetWindowMonitor(window.getWindowHandle()) != 0;
+		return (SDLVideo.SDL_GetWindowFlags(window.getWindowHandle()) & SDLVideo.SDL_WINDOW_FULLSCREEN) != 0;
 	}
 
 	@Override
@@ -552,41 +538,40 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 
 	@Override
 	public void setCursor (Cursor cursor) {
-		GLFW.glfwSetCursor(getWindow().getWindowHandle(), ((Lwjgl3Cursor)cursor).glfwCursor);
+		getWindow().currentCursor = ((Lwjgl3Cursor)cursor).sdlCursor;
 	}
 
 	@Override
 	public void setSystemCursor (SystemCursor systemCursor) {
-		Lwjgl3Cursor.setSystemCursor(getWindow().getWindowHandle(), systemCursor);
+		Lwjgl3Cursor.setSystemCursor(getWindow(), systemCursor);
 	}
 
 	@Override
 	public void dispose () {
-		this.resizeCallback.free();
 	}
 
 	public static class Lwjgl3DisplayMode extends DisplayMode {
-		final long monitorHandle;
+		final SDL_DisplayMode displayMode;
 
-		Lwjgl3DisplayMode (long monitor, int width, int height, int refreshRate, int bitsPerPixel) {
-			super(width, height, refreshRate, bitsPerPixel);
-			this.monitorHandle = monitor;
+		Lwjgl3DisplayMode (SDL_DisplayMode displayMode) {
+			super(displayMode.w(), displayMode.h(), (int) displayMode.refresh_rate(), SDLPixels.SDL_BITSPERPIXEL(displayMode.format()));
+			this.displayMode = displayMode;
 		}
 
-		public long getMonitor () {
-			return monitorHandle;
+		public int getMonitor () {
+			return displayMode.displayID();
 		}
 	}
 
 	public static class Lwjgl3Monitor extends Monitor {
-		final long monitorHandle;
+		final int monitorHandle;
 
-		Lwjgl3Monitor (long monitor, int virtualX, int virtualY, String name) {
+		Lwjgl3Monitor (int monitor, int virtualX, int virtualY, String name) {
 			super(virtualX, virtualY, name);
 			this.monitorHandle = monitor;
 		}
 
-		public long getMonitorHandle () {
+		public int getMonitorHandle () {
 			return monitorHandle;
 		}
 	}

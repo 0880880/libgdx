@@ -27,8 +27,6 @@ import com.badlogic.gdx.backends.lwjgl3.audio.Lwjgl3Audio;
 import com.badlogic.gdx.backends.lwjgl3.audio.OpenALLwjgl3Audio;
 import com.badlogic.gdx.graphics.glutils.GLVersion;
 
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.AMDDebugOutput;
 import org.lwjgl.opengl.ARBDebugOutput;
 import org.lwjgl.opengl.GL;
@@ -37,6 +35,7 @@ import org.lwjgl.opengl.GL43;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
 import org.lwjgl.opengl.KHRDebug;
+import org.lwjgl.sdl.*;
 import org.lwjgl.system.Callback;
 
 import com.badlogic.gdx.Application;
@@ -73,21 +72,18 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	private final Array<Runnable> runnables = new Array<Runnable>();
 	private final Array<Runnable> executedRunnables = new Array<Runnable>();
 	private final Array<LifecycleListener> lifecycleListeners = new Array<LifecycleListener>();
-	private static GLFWErrorCallback errorCallback;
+	private static boolean initialized = false;
 	private static GLVersion glVersion;
 	private static Callback glDebugCallback;
 	private final Sync sync;
+	private Lwjgl3Window mouseHoverWindow = null, inputFocusWindow = null;
 
-	static void initializeGlfw () {
-		if (errorCallback == null) {
+	static void initializeSDL() {
+		if (!initialized) {
 			Lwjgl3NativesLoader.load();
-			errorCallback = GLFWErrorCallback.createPrint(Lwjgl3ApplicationConfiguration.errorStream);
-			GLFW.glfwSetErrorCallback(errorCallback);
-			if (SharedLibraryLoader.os == Os.MacOsX)
-				GLFW.glfwInitHint(GLFW.GLFW_ANGLE_PLATFORM_TYPE, GLFW.GLFW_ANGLE_PLATFORM_TYPE_METAL);
-			GLFW.glfwInitHint(GLFW.GLFW_JOYSTICK_HAT_BUTTONS, GLFW.GLFW_FALSE);
-			if (!GLFW.glfwInit()) {
-				throw new GdxRuntimeException("Unable to initialize GLFW");
+			initialized = true;
+			if (!SDLInit.SDL_Init(SDLInit.SDL_INIT_VIDEO)) {
+				throw new GdxRuntimeException("Unable to initialize SDL3");
 			}
 		}
 	}
@@ -116,13 +112,22 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		}
 	}
 
+	private Lwjgl3Window findWindow(int id) {
+		for (Lwjgl3Window window : windows) {
+			if (window.sdlID == id) {
+				return window;
+			}
+		}
+		return null;
+	}
+
 	public Lwjgl3Application (ApplicationListener listener) {
 		this(listener, new Lwjgl3ApplicationConfiguration());
 	}
 
 	public Lwjgl3Application (ApplicationListener listener, Lwjgl3ApplicationConfiguration config) {
 		if (config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) loadANGLE();
-		initializeGlfw();
+		initializeSDL();
 		setApplicationLogger(new Lwjgl3ApplicationLogger());
 
 		this.config = config = Lwjgl3ApplicationConfiguration.copy(config);
@@ -146,9 +151,22 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 		this.sync = new Sync();
 
-		Lwjgl3Window window = createWindow(config, listener, 0);
+		Lwjgl3Window window = createWindow(config, listener, null);
 		if (config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) postLoadANGLE();
 		windows.add(window);
+
+		SDLEvents.SDL_SetEventFilter(new SDL_EventFilterI() {
+			@Override
+			public boolean invoke(long ignored, long eventAddress) {
+				SDL_Event event = SDL_Event.create(eventAddress);
+				if (event.type() == SDLEvents.SDL_EVENT_WINDOW_EXPOSED) {
+					findWindow(event.window().windowID()).requestRendering();
+					return true;
+				}
+				return false;
+			}
+		}, 0);
+
 		try {
 			loop();
 			cleanupWindows();
@@ -164,6 +182,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 	protected void loop () {
 		Array<Lwjgl3Window> closedWindows = new Array<Lwjgl3Window>();
+		SDL_Event event = SDL_Event.calloc();
 		while (running && windows.size > 0) {
 			// FIXME put it on a separate thread
 			audio.update();
@@ -184,7 +203,103 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 					closedWindows.add(window);
 				}
 			}
-			GLFW.glfwPollEvents();
+			while (SDLEvents.SDL_PollEvent(event)) {
+				Lwjgl3Window window = null;
+				if (event.type() >= SDLEvents.SDL_EVENT_WINDOW_FIRST && event.type() <= SDLEvents.SDL_EVENT_WINDOW_LAST) {
+					window = findWindow(event.window().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN || event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP) {
+					window = findWindow(event.button().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_WHEEL) {
+					window = findWindow(event.wheel().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_MOTION) {
+					window = findWindow(event.motion().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_KEY_DOWN || event.type() == SDLEvents.SDL_EVENT_KEY_UP) {
+					window = findWindow(event.key().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_TEXT_INPUT) {
+					window = findWindow(event.text().windowID());
+				} else if (event.type() == SDLEvents.SDL_EVENT_DROP_BEGIN || event.type() == SDLEvents.SDL_EVENT_DROP_FILE || event.type() == SDLEvents.SDL_EVENT_DROP_COMPLETE) {
+					window = findWindow(event.text().windowID());
+				}
+				if (window != null) {
+					switch (event.type()) {
+						case SDLEvents.SDL_EVENT_WINDOW_RESIZED:
+						case SDLEvents.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+							window.getGraphics().resizeCallback(window.getWindowHandle());
+							window.refreshCallback();
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_MINIMIZED:
+							window.iconifyCallback(true);
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_MAXIMIZED:
+							window.maximizeCallback(true);
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_RESTORED:
+							if (window.iconified) {
+								window.iconifyCallback(false);
+							} else {
+								window.maximizeCallback(false);
+							}
+							break;
+						case SDLEvents.SDL_EVENT_MOUSE_MOTION:
+							window.getInput().cursorPosCallback(window.getWindowHandle(), event.motion().x(), event.motion().y());
+							break;
+						case SDLEvents.SDL_EVENT_MOUSE_WHEEL:
+							window.getInput().scrollCallback(window.getWindowHandle(), event.wheel().x(), event.wheel().y());
+							break;
+						case SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN:
+						case SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP:
+							window.getInput().mouseButtonCallback(window.getWindowHandle(), event.button().button(), event.button().down());
+							break;
+						case SDLEvents.SDL_EVENT_TEXT_INPUT:
+							window.getInput().charCallback(window.getWindowHandle(), event.text().textString().codePointAt(0));
+							break;
+						case SDLEvents.SDL_EVENT_KEY_DOWN:
+						case SDLEvents.SDL_EVENT_KEY_UP:
+							window.getInput().keyCallback(window.getWindowHandle(), event.key().key(), event.key().scancode(), event.key().mod(), event.key().repeat(), event.key().down());
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_MOUSE_ENTER:
+							mouseHoverWindow = window;
+							mouseHoverWindow.isMouseInside = true;
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_MOUSE_LEAVE:
+							if (mouseHoverWindow != null) {
+								mouseHoverWindow.isMouseInside = false;
+							}
+							mouseHoverWindow = null;
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED:
+							if (inputFocusWindow != null) {
+								SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
+							}
+							inputFocusWindow = window;
+							SDLKeyboard.SDL_StartTextInput(inputFocusWindow.getWindowHandle());
+							window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_FOCUS_LOST:
+							if (inputFocusWindow != null) {
+								SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
+							}
+							inputFocusWindow = null;
+							window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
+							break;
+						case SDLEvents.SDL_EVENT_DROP_BEGIN:
+							window.dropClear();
+							break;
+						case SDLEvents.SDL_EVENT_DROP_COMPLETE:
+							window.dropCallback();
+							break;
+						case SDLEvents.SDL_EVENT_DROP_FILE:
+							window.dropFile(event.drop().dataString());
+							break;
+						case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+							window.closeWindow();
+							break;
+					}
+					if (event.type() == SDLEvents.SDL_EVENT_QUIT) {
+						running = false;
+					}
+				}
+			}
 
 			boolean shouldRequestRendering;
 			synchronized (runnables) {
@@ -233,6 +348,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 				sync.sync(targetFramerate); // sleep as needed to meet the target framerate
 			}
 		}
+		event.free();
 	}
 
 	protected void cleanupWindows () {
@@ -251,13 +367,11 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	protected void cleanup () {
 		Lwjgl3Cursor.disposeSystemCursors();
 		audio.dispose();
-		errorCallback.free();
-		errorCallback = null;
 		if (glDebugCallback != null) {
 			glDebugCallback.free();
 			glDebugCallback = null;
 		}
-		GLFW.glfwTerminate();
+		SDLInit.SDL_Quit();
 	}
 
 	@Override
@@ -426,156 +540,155 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		Lwjgl3ApplicationConfiguration appConfig = Lwjgl3ApplicationConfiguration.copy(this.config);
 		appConfig.setWindowConfiguration(config);
 		if (appConfig.title == null) appConfig.title = listener.getClass().getSimpleName();
-		return createWindow(appConfig, listener, windows.get(0).getWindowHandle());
+		return createWindow(appConfig, listener, windows.get(0));
 	}
 
 	private Lwjgl3Window createWindow (final Lwjgl3ApplicationConfiguration config, ApplicationListener listener,
-		final long sharedContext) {
+		final Lwjgl3Window sharedContext) {
 		final Lwjgl3Window window = new Lwjgl3Window(listener, lifecycleListeners, config, this);
-		if (sharedContext == 0) {
-			// the main window is created immediately
-			createWindow(window, config, sharedContext);
-		} else {
-			// creation of additional windows is deferred to avoid GL context trouble
-			postRunnable(new Runnable() {
-				public void run () {
-					createWindow(window, config, sharedContext);
-					windows.add(window);
-				}
-			});
+		long currentWindow = sharedContext != null ? SDLVideo.SDL_GL_GetCurrentWindow() : 0;
+		long currentContext = sharedContext != null ? SDLVideo.SDL_GL_GetCurrentContext() : 0;
+		createWindow(window, config, sharedContext);
+		// No need for postRunnable
+		if (currentContext != 0) {
+			windows.add(window);
+			SDLVideo.SDL_GL_MakeCurrent(currentWindow, currentContext);
 		}
 		return window;
 	}
 
-	void createWindow (Lwjgl3Window window, Lwjgl3ApplicationConfiguration config, long sharedContext) {
-		long windowHandle = createGlfwWindow(config, sharedContext);
-		window.create(windowHandle);
+	void createWindow (Lwjgl3Window window, Lwjgl3ApplicationConfiguration config, Lwjgl3Window sharedContext) {
+		long[] windowData = createSDLWindow(config, sharedContext);
+		long windowHandle = windowData[0];
+		long glContext = windowData[1];
+		window.create(windowHandle, glContext);
 		window.setVisible(config.initialVisible);
+		window.autoIconify = config.autoIconify;
 
 		for (int i = 0; i < 2; i++) {
 			window.getGraphics().gl20.glClearColor(config.initialBackgroundColor.r, config.initialBackgroundColor.g,
 				config.initialBackgroundColor.b, config.initialBackgroundColor.a);
 			window.getGraphics().gl20.glClear(GL11.GL_COLOR_BUFFER_BIT);
-			GLFW.glfwSwapBuffers(windowHandle);
+			SDLVideo.SDL_GL_SwapWindow(windowHandle);
 		}
 
 		if (currentWindow != null) {
-			// the call above to createGlfwWindow switches the OpenGL context to the newly created window,
-			// ensure that the invariant "currentWindow is the window with the current active OpenGL context" holds
 			currentWindow.makeCurrent();
 		}
 	}
 
-	static long createGlfwWindow (Lwjgl3ApplicationConfiguration config, long sharedContextWindow) {
-		GLFW.glfwDefaultWindowHints();
-		GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
-		GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, config.windowResizable ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
-		GLFW.glfwWindowHint(GLFW.GLFW_MAXIMIZED, config.windowMaximized ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
-		GLFW.glfwWindowHint(GLFW.GLFW_AUTO_ICONIFY, config.autoIconify ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+	static long[] createSDLWindow(Lwjgl3ApplicationConfiguration config, Lwjgl3Window sharedContextWindow) {
 
-		GLFW.glfwWindowHint(GLFW.GLFW_RED_BITS, config.r);
-		GLFW.glfwWindowHint(GLFW.GLFW_GREEN_BITS, config.g);
-		GLFW.glfwWindowHint(GLFW.GLFW_BLUE_BITS, config.b);
-		GLFW.glfwWindowHint(GLFW.GLFW_ALPHA_BITS, config.a);
-		GLFW.glfwWindowHint(GLFW.GLFW_STENCIL_BITS, config.stencil);
-		GLFW.glfwWindowHint(GLFW.GLFW_DEPTH_BITS, config.depth);
-		GLFW.glfwWindowHint(GLFW.GLFW_SAMPLES, config.samples);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_RED_SIZE, config.r);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_GREEN_SIZE, config.g);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_BLUE_SIZE, config.b);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_ALPHA_SIZE, config.a);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_STENCIL_SIZE, config.stencil);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_DEPTH_SIZE, config.depth);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_MULTISAMPLESAMPLES, config.samples);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_DOUBLEBUFFER, 1);
+		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
+
+		int glContextFlags = 0;
 
 		if (config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.GL30
 			|| config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.GL31
 			|| config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.GL32) {
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, config.gles30ContextMajorVersion);
-			GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, config.gles30ContextMinorVersion);
+			SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MAJOR_VERSION, config.gles30ContextMajorVersion);
+			SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MINOR_VERSION, config.gles30ContextMinorVersion);
 			if (SharedLibraryLoader.os == Os.MacOsX) {
 				// hints mandatory on OS X for GL 3.2+ context creation, but fail on Windows if the
 				// WGL_ARB_create_context extension is not available
 				// see: http://www.glfw.org/docs/latest/compat.html
-				GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
-				GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
+				glContextFlags |= SDLVideo.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+				SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_PROFILE_MASK, SDLVideo.SDL_GL_CONTEXT_PROFILE_CORE);
 			}
 		} else {
 			if (config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) {
-				GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_CREATION_API, GLFW.GLFW_EGL_CONTEXT_API);
-				GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_OPENGL_ES_API);
-				GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 2);
-				GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 0);
+				SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_EGL_PLATFORM, 1);
+				SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_PROFILE_MASK, SDLVideo.SDL_GL_CONTEXT_PROFILE_ES);
+				SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+				SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MINOR_VERSION, 0);
 			}
-		}
-
-		if (config.transparentFramebuffer) {
-			GLFW.glfwWindowHint(GLFW.GLFW_TRANSPARENT_FRAMEBUFFER, GLFW.GLFW_TRUE);
 		}
 
 		if (config.debug) {
-			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, GLFW.GLFW_TRUE);
+			glContextFlags |= SDLVideo.SDL_GL_CONTEXT_DEBUG_FLAG;
 		}
 
-		long windowHandle = 0;
-
-		if (config.fullscreenMode != null) {
-			GLFW.glfwWindowHint(GLFW.GLFW_REFRESH_RATE, config.fullscreenMode.refreshRate);
-			windowHandle = GLFW.glfwCreateWindow(config.fullscreenMode.width, config.fullscreenMode.height, config.title,
-				config.fullscreenMode.getMonitor(), sharedContextWindow);
-
-			// On Ubuntu >= 22.04 with Nvidia GPU drivers and X11 display server there's a bug with EGL Context API
-			// If the windows creation has failed for this reason try to create it again with the native context
-			if (windowHandle == 0 && config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) {
-				GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_CREATION_API, GLFW.GLFW_NATIVE_CONTEXT_API);
-				windowHandle = GLFW.glfwCreateWindow(config.fullscreenMode.width, config.fullscreenMode.height, config.title,
-					config.fullscreenMode.getMonitor(), sharedContextWindow);
-			}
-		} else {
-			GLFW.glfwWindowHint(GLFW.GLFW_DECORATED, config.windowDecorated ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
-			windowHandle = GLFW.glfwCreateWindow(config.windowWidth, config.windowHeight, config.title, 0, sharedContextWindow);
-
-			// On Ubuntu >= 22.04 with Nvidia GPU drivers and X11 display server there's a bug with EGL Context API
-			// If the windows creation has failed for this reason try to create it again with the native context
-			if (windowHandle == 0 && config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) {
-				GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_CREATION_API, GLFW.GLFW_NATIVE_CONTEXT_API);
-				windowHandle = GLFW.glfwCreateWindow(config.windowWidth, config.windowHeight, config.title, 0, sharedContextWindow);
-			}
+		if (glContextFlags != 0) {
+			SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_FLAGS, glContextFlags);
 		}
-		if (windowHandle == 0) {
-			throw new GdxRuntimeException("Couldn't create window");
-		}
-		Lwjgl3Window.setSizeLimits(windowHandle, config.windowMinWidth, config.windowMinHeight, config.windowMaxWidth,
-			config.windowMaxHeight);
+
+		int props = SDLProperties.SDL_CreateProperties();
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, !config.windowDecorated);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, config.windowResizable);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN, config.windowMaximized);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, config.transparentFramebuffer);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
+
+		SDLProperties.SDL_SetNumberProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, config.windowWidth);
+		SDLProperties.SDL_SetNumberProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, config.windowHeight);
+
+		SDLProperties.SDL_SetStringProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_TITLE_STRING, config.title);
+
 		if (config.fullscreenMode == null) {
-			if (GLFW.glfwGetPlatform() != GLFW.GLFW_PLATFORM_WAYLAND) {
-				if (config.windowX == -1 && config.windowY == -1) { // i.e., center the window
-					int windowWidth = Math.max(config.windowWidth, config.windowMinWidth);
-					int windowHeight = Math.max(config.windowHeight, config.windowMinHeight);
-					if (config.windowMaxWidth > -1) windowWidth = Math.min(windowWidth, config.windowMaxWidth);
-					if (config.windowMaxHeight > -1) windowHeight = Math.min(windowHeight, config.windowMaxHeight);
+			int windowX = config.windowX;
+			int windowY = config.windowY;
+			if (config.windowX == -1 && config.windowY == -1) { // i.e., center the window
+				int windowWidth = Math.max(config.windowWidth, config.windowMinWidth);
+				int windowHeight = Math.max(config.windowHeight, config.windowMinHeight);
+				if (config.windowMaxWidth > -1) windowWidth = Math.min(windowWidth, config.windowMaxWidth);
+				if (config.windowMaxHeight > -1) windowHeight = Math.min(windowHeight, config.windowMaxHeight);
 
-					long monitorHandle = GLFW.glfwGetPrimaryMonitor();
-					if (config.windowMaximized && config.maximizedMonitor != null) {
-						monitorHandle = config.maximizedMonitor.monitorHandle;
-					}
+				int monitorHandle = SDLVideo.SDL_GetPrimaryDisplay();
+				if (config.windowMaximized && config.maximizedMonitor != null) {
+					monitorHandle = config.maximizedMonitor.monitorHandle;
+				}
 
-					// If the primary monitor is unavailable, use (0, 0) as a fallback
-					if (monitorHandle == 0) {
-						GLFW.glfwSetWindowPos(windowHandle, 0, 0);
-					} else {
-						GridPoint2 newPos = Lwjgl3ApplicationConfiguration.calculateCenteredWindowPosition(
-							Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(monitorHandle), windowWidth, windowHeight);
-						GLFW.glfwSetWindowPos(windowHandle, newPos.x, newPos.y);
-					}
-
+				// If the primary monitor is unavailable, use (0, 0) as a fallback
+				if (monitorHandle == 0) {
+					windowX = 0;
+					windowY = 0;
 				} else {
-					GLFW.glfwSetWindowPos(windowHandle, config.windowX, config.windowY);
+					GridPoint2 newPos = Lwjgl3ApplicationConfiguration.calculateCenteredWindowPosition(
+							Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(monitorHandle), windowWidth, windowHeight);
+					windowX = newPos.x;
+					windowY = newPos.y;
 				}
 			}
-
-			if (config.windowMaximized) {
-				GLFW.glfwMaximizeWindow(windowHandle);
-			}
+			SDLProperties.SDL_SetNumberProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_X_NUMBER, windowX);
+			SDLProperties.SDL_SetNumberProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_Y_NUMBER, windowY);
 		}
+
+		long windowHandle = SDLVideo.SDL_CreateWindowWithProperties(props);
+		if (windowHandle == 0) {
+			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
+			throw new GdxRuntimeException("Couldn't create window");
+		}
+		SDLProperties.SDL_DestroyProperties(props);
+		if (config.fullscreenMode != null) {
+			SDLVideo.SDL_SetWindowFullscreen(windowHandle, true);
+			SDLVideo.SDL_SetWindowFullscreenMode(windowHandle, config.fullscreenMode.displayMode);
+		}
+		if (sharedContextWindow != null) { // share context
+			SDLVideo.SDL_GL_MakeCurrent(sharedContextWindow.getWindowHandle(), sharedContextWindow.glContext);
+		}
+		long glContext = SDLVideo.SDL_GL_CreateContext(windowHandle);
+		if (glContext == 0) {
+			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
+			throw new GdxRuntimeException("Couldn't create GL Context");
+		}
+
+		Lwjgl3Window.setSizeLimits(windowHandle, config.windowMinWidth, config.windowMinHeight, config.windowMaxWidth,
+			config.windowMaxHeight);
 		if (config.windowIconPaths != null) {
 			Lwjgl3Window.setIcon(windowHandle, config.windowIconPaths, config.windowIconFileType);
 		}
-		GLFW.glfwMakeContextCurrent(windowHandle);
-		GLFW.glfwSwapInterval(config.vSyncEnabled ? 1 : 0);
+		SDLVideo.SDL_GL_MakeCurrent(windowHandle, glContext);
+		SDLVideo.SDL_GL_SetSwapInterval(config.vSyncEnabled ? 1 : 0);
 		if (config.glEmulation == Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20) {
 			try {
 				Class gles = Class.forName("org.lwjgl.opengles.GLES");
@@ -606,7 +719,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 			setGLDebugMessageControl(GLDebugMessageSeverity.NOTIFICATION, false);
 		}
 
-		return windowHandle;
+		return new long[]{windowHandle, glContext};
 	}
 
 	private static void initiateGL (boolean useGLES20) {
@@ -631,8 +744,8 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 	private static boolean supportsFBO () {
 		// FBO is in core since OpenGL 3.0, see https://www.opengl.org/wiki/Framebuffer_Object
-		return glVersion.isVersionEqualToOrHigher(3, 0) || GLFW.glfwExtensionSupported("GL_EXT_framebuffer_object")
-			|| GLFW.glfwExtensionSupported("GL_ARB_framebuffer_object");
+		return glVersion.isVersionEqualToOrHigher(3, 0) || SDLVideo.SDL_GL_ExtensionSupported("GL_EXT_framebuffer_object")
+			|| SDLVideo.SDL_GL_ExtensionSupported("GL_ARB_framebuffer_object");
 	}
 
 	public enum GLDebugMessageSeverity {

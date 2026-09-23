@@ -34,7 +34,6 @@ import org.lwjgl.opengl.KHRBlendEquationAdvanced;
 import org.lwjgl.system.MemoryUtil;
 
 import com.badlogic.gdx.graphics.GL32;
-import com.badlogic.gdx.graphics.GL32.DebugProc;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public class Lwjgl3GL32 extends Lwjgl3GL31 implements GL32 {
