@@ -19,7 +19,7 @@ package com.badlogic.gdx.backends.lwjgl3;
 import com.badlogic.gdx.utils.Clipboard;
 import org.lwjgl.sdl.SDLClipboard;
 
-/** Clipboard implementation for desktop that uses the system clipboard via GLFW.
+/** Clipboard implementation for desktop that uses the system clipboard via SDL.
  * @author mzechner */
 public class Lwjgl3Clipboard implements Clipboard {
 	@Override

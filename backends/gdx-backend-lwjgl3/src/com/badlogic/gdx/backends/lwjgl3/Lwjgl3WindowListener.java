@@ -25,8 +25,8 @@ import com.badlogic.gdx.ApplicationListener;
  * @author badlogic */
 public interface Lwjgl3WindowListener {
 
-	/** Called after the GLFW window is created. Before this callback is received, it's unsafe to use any {@link Lwjgl3Window}
-	 * member functions which, for their part, involve calling GLFW functions.
+	/** Called after the SDL window is created. Before this callback is received, it's unsafe to use any {@link Lwjgl3Window}
+	 * member functions which, for their part, involve calling SDL functions.
 	 *
 	 * For the main window, this is an immediate callback from inside
 	 * {@link Lwjgl3Application#Lwjgl3Application(ApplicationListener, Lwjgl3ApplicationConfiguration)}.
