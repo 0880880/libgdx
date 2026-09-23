@@ -85,14 +85,14 @@ public class AwtTestLWJGL {
 			GL11.glEnd();
 			while (SDLEvents.SDL_PollEvent(event)) {
 				switch (event.type()) {
-					case SDLEvents.SDL_EVENT_QUIT:
-					case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-						shouldClose = true;
-						break;
-					case SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN:
-						callback(SDLVideo.SDL_GetWindowFromID(event.button().windowID()), event.button().button(), true);
-					case SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP:
-						callback(SDLVideo.SDL_GetWindowFromID(event.button().windowID()), event.button().button(), false);
+				case SDLEvents.SDL_EVENT_QUIT:
+				case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+					shouldClose = true;
+					break;
+				case SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN:
+					callback(SDLVideo.SDL_GetWindowFromID(event.button().windowID()), event.button().button(), true);
+				case SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP:
+					callback(SDLVideo.SDL_GetWindowFromID(event.button().windowID()), event.button().button(), false);
 				}
 			}
 			SDLVideo.SDL_GL_SwapWindow(window);

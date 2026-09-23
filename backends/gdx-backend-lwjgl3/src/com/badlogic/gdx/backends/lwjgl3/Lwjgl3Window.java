@@ -131,11 +131,11 @@ public class Lwjgl3Window implements Disposable {
 
 	Array<String> dropFiles = new Array<>(1);
 
-	void dropClear() {
+	void dropClear () {
 		dropFiles.clear();
 	}
 
-	void dropFile(String name) {
+	void dropFile (String name) {
 		dropFiles.add(name);
 	}
 
@@ -315,7 +315,8 @@ public class Lwjgl3Window implements Disposable {
 				pixmap = rgba;
 			}
 
-			try (SDL_Surface surface = SDLSurface.SDL_CreateSurfaceFrom(pixmap.getWidth(), pixmap.getHeight(), SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixmap.getPixels(), pixmap.getWidth())) {
+			try (SDL_Surface surface = SDLSurface.SDL_CreateSurfaceFrom(pixmap.getWidth(), pixmap.getHeight(),
+				SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixmap.getPixels(), pixmap.getWidth())) {
 				if (surface == null) {
 					Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
 				} else {
@@ -369,7 +370,7 @@ public class Lwjgl3Window implements Disposable {
 		return windowHandle;
 	}
 
-	void updateCursor() {
+	void updateCursor () {
 		if (currentCursor != previousCursor) {
 			SDLMouse.SDL_SetCursor(currentCursor);
 			previousCursor = currentCursor;
@@ -402,8 +403,7 @@ public class Lwjgl3Window implements Disposable {
 			requestRendering = false;
 		}
 
-		if (isMouseInside)
-			updateCursor();
+		if (isMouseInside) updateCursor();
 
 		if (shouldRender) {
 			graphics.update();

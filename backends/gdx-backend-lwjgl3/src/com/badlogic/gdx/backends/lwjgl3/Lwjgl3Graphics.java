@@ -37,7 +37,6 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.Disposable;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.sdl.*;
-import org.lwjgl.system.Configuration;
 import org.lwjgl.system.MemoryStack;
 
 public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
@@ -554,7 +553,8 @@ public class Lwjgl3Graphics extends AbstractGraphics implements Disposable {
 		final SDL_DisplayMode displayMode;
 
 		Lwjgl3DisplayMode (SDL_DisplayMode displayMode) {
-			super(displayMode.w(), displayMode.h(), (int) displayMode.refresh_rate(), SDLPixels.SDL_BITSPERPIXEL(displayMode.format()));
+			super(displayMode.w(), displayMode.h(), (int)displayMode.refresh_rate(),
+				SDLPixels.SDL_BITSPERPIXEL(displayMode.format()));
 			this.displayMode = displayMode;
 		}
 

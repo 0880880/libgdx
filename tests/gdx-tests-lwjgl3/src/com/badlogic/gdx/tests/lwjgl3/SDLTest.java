@@ -8,7 +8,6 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.sdl.*;
-import org.lwjgl.system.MemoryUtil;
 
 public class SDLTest {
 	private static long windowHandle;
@@ -71,7 +70,7 @@ public class SDLTest {
 				fbWidth = tmp.get(0);
 				fbHeight = tmp2.get(0);
 				System.out.println("Framebuffer: " + fbWidth + "x" + fbHeight);
- GL11.glViewport(0, 0, fbWidth, fbHeight);
+				GL11.glViewport(0, 0, fbWidth, fbHeight);
 			}
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 			GL11.glBegin(GL11.GL_TRIANGLES);
@@ -82,9 +81,9 @@ public class SDLTest {
 			SDLVideo.SDL_GL_SwapWindow(windowHandle);
 			while (SDLEvents.SDL_PollEvent(event)) {
 				switch (event.type()) {
-					case SDLEvents.SDL_EVENT_QUIT:
-					case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-						shouldClose = true;
+				case SDLEvents.SDL_EVENT_QUIT:
+				case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+					shouldClose = true;
 				}
 			}
 		}

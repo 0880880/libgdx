@@ -67,7 +67,8 @@ public class Lwjgl3Cursor implements Cursor {
 		this.pixmapCopy.setBlending(Blending.None);
 		this.pixmapCopy.drawPixmap(pixmap, 0, 0);
 
-		sdlSurface = SDLSurface.SDL_CreateSurfaceFrom(pixmapCopy.getWidth(), pixmapCopy.getHeight(), SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixmapCopy.getPixels(), pixmapCopy.getWidth());
+		sdlSurface = SDLSurface.SDL_CreateSurfaceFrom(pixmapCopy.getWidth(), pixmapCopy.getHeight(),
+			SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixmapCopy.getPixels(), pixmapCopy.getWidth());
 		if (sdlSurface != null) {
 			sdlCursor = SDLMouse.SDL_CreateColorCursor(sdlSurface, xHotspot, yHotspot);
 			cursors.add(this);

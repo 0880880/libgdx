@@ -78,7 +78,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	private final Sync sync;
 	private Lwjgl3Window mouseHoverWindow = null, inputFocusWindow = null;
 
-	static void initializeSDL() {
+	static void initializeSDL () {
 		if (!initialized) {
 			Lwjgl3NativesLoader.load();
 			initialized = true;
@@ -112,7 +112,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		}
 	}
 
-	private Lwjgl3Window findWindow(int id) {
+	private Lwjgl3Window findWindow (int id) {
 		for (Lwjgl3Window window : windows) {
 			if (window.sdlID == id) {
 				return window;
@@ -157,7 +157,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 		SDLEvents.SDL_SetEventFilter(new SDL_EventFilterI() {
 			@Override
-			public boolean invoke(long ignored, long eventAddress) {
+			public boolean invoke (long ignored, long eventAddress) {
 				SDL_Event event = SDL_Event.create(eventAddress);
 				if (event.type() == SDLEvents.SDL_EVENT_WINDOW_EXPOSED) {
 					findWindow(event.window().windowID()).requestRendering();
@@ -207,7 +207,8 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 				Lwjgl3Window window = null;
 				if (event.type() >= SDLEvents.SDL_EVENT_WINDOW_FIRST && event.type() <= SDLEvents.SDL_EVENT_WINDOW_LAST) {
 					window = findWindow(event.window().windowID());
-				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN || event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP) {
+				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN
+					|| event.type() == SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP) {
 					window = findWindow(event.button().windowID());
 				} else if (event.type() == SDLEvents.SDL_EVENT_MOUSE_WHEEL) {
 					window = findWindow(event.wheel().windowID());
@@ -217,83 +218,85 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 					window = findWindow(event.key().windowID());
 				} else if (event.type() == SDLEvents.SDL_EVENT_TEXT_INPUT) {
 					window = findWindow(event.text().windowID());
-				} else if (event.type() == SDLEvents.SDL_EVENT_DROP_BEGIN || event.type() == SDLEvents.SDL_EVENT_DROP_FILE || event.type() == SDLEvents.SDL_EVENT_DROP_COMPLETE) {
+				} else if (event.type() == SDLEvents.SDL_EVENT_DROP_BEGIN || event.type() == SDLEvents.SDL_EVENT_DROP_FILE
+					|| event.type() == SDLEvents.SDL_EVENT_DROP_COMPLETE) {
 					window = findWindow(event.text().windowID());
 				}
 				if (window != null) {
 					switch (event.type()) {
-						case SDLEvents.SDL_EVENT_WINDOW_RESIZED:
-						case SDLEvents.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-							window.getGraphics().resizeCallback(window.getWindowHandle());
-							window.refreshCallback();
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_MINIMIZED:
-							window.iconifyCallback(true);
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_MAXIMIZED:
-							window.maximizeCallback(true);
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_RESTORED:
-							if (window.iconified) {
-								window.iconifyCallback(false);
-							} else {
-								window.maximizeCallback(false);
-							}
-							break;
-						case SDLEvents.SDL_EVENT_MOUSE_MOTION:
-							window.getInput().cursorPosCallback(window.getWindowHandle(), event.motion().x(), event.motion().y());
-							break;
-						case SDLEvents.SDL_EVENT_MOUSE_WHEEL:
-							window.getInput().scrollCallback(window.getWindowHandle(), event.wheel().x(), event.wheel().y());
-							break;
-						case SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN:
-						case SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP:
-							window.getInput().mouseButtonCallback(window.getWindowHandle(), event.button().button(), event.button().down());
-							break;
-						case SDLEvents.SDL_EVENT_TEXT_INPUT:
-							window.getInput().charCallback(window.getWindowHandle(), event.text().textString().codePointAt(0));
-							break;
-						case SDLEvents.SDL_EVENT_KEY_DOWN:
-						case SDLEvents.SDL_EVENT_KEY_UP:
-							window.getInput().keyCallback(window.getWindowHandle(), event.key().key(), event.key().scancode(), event.key().mod(), event.key().repeat(), event.key().down());
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_MOUSE_ENTER:
-							mouseHoverWindow = window;
-							mouseHoverWindow.isMouseInside = true;
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_MOUSE_LEAVE:
-							if (mouseHoverWindow != null) {
-								mouseHoverWindow.isMouseInside = false;
-							}
-							mouseHoverWindow = null;
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED:
-							if (inputFocusWindow != null) {
-								SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
-							}
-							inputFocusWindow = window;
-							SDLKeyboard.SDL_StartTextInput(inputFocusWindow.getWindowHandle());
-							window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_FOCUS_LOST:
-							if (inputFocusWindow != null) {
-								SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
-							}
-							inputFocusWindow = null;
-							window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
-							break;
-						case SDLEvents.SDL_EVENT_DROP_BEGIN:
-							window.dropClear();
-							break;
-						case SDLEvents.SDL_EVENT_DROP_COMPLETE:
-							window.dropCallback();
-							break;
-						case SDLEvents.SDL_EVENT_DROP_FILE:
-							window.dropFile(event.drop().dataString());
-							break;
-						case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-							window.closeWindow();
-							break;
+					case SDLEvents.SDL_EVENT_WINDOW_RESIZED:
+					case SDLEvents.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+						window.getGraphics().resizeCallback(window.getWindowHandle());
+						window.refreshCallback();
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_MINIMIZED:
+						window.iconifyCallback(true);
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_MAXIMIZED:
+						window.maximizeCallback(true);
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_RESTORED:
+						if (window.iconified) {
+							window.iconifyCallback(false);
+						} else {
+							window.maximizeCallback(false);
+						}
+						break;
+					case SDLEvents.SDL_EVENT_MOUSE_MOTION:
+						window.getInput().cursorPosCallback(window.getWindowHandle(), event.motion().x(), event.motion().y());
+						break;
+					case SDLEvents.SDL_EVENT_MOUSE_WHEEL:
+						window.getInput().scrollCallback(window.getWindowHandle(), event.wheel().x(), event.wheel().y());
+						break;
+					case SDLEvents.SDL_EVENT_MOUSE_BUTTON_DOWN:
+					case SDLEvents.SDL_EVENT_MOUSE_BUTTON_UP:
+						window.getInput().mouseButtonCallback(window.getWindowHandle(), event.button().button(), event.button().down());
+						break;
+					case SDLEvents.SDL_EVENT_TEXT_INPUT:
+						window.getInput().charCallback(window.getWindowHandle(), event.text().textString().codePointAt(0));
+						break;
+					case SDLEvents.SDL_EVENT_KEY_DOWN:
+					case SDLEvents.SDL_EVENT_KEY_UP:
+						window.getInput().keyCallback(window.getWindowHandle(), event.key().key(), event.key().scancode(),
+							event.key().mod(), event.key().repeat(), event.key().down());
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_MOUSE_ENTER:
+						mouseHoverWindow = window;
+						mouseHoverWindow.isMouseInside = true;
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_MOUSE_LEAVE:
+						if (mouseHoverWindow != null) {
+							mouseHoverWindow.isMouseInside = false;
+						}
+						mouseHoverWindow = null;
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED:
+						if (inputFocusWindow != null) {
+							SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
+						}
+						inputFocusWindow = window;
+						SDLKeyboard.SDL_StartTextInput(inputFocusWindow.getWindowHandle());
+						window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_FOCUS_LOST:
+						if (inputFocusWindow != null) {
+							SDLKeyboard.SDL_StopTextInput(inputFocusWindow.getWindowHandle());
+						}
+						inputFocusWindow = null;
+						window.focusCallback(event.type() == SDLEvents.SDL_EVENT_WINDOW_FOCUS_GAINED);
+						break;
+					case SDLEvents.SDL_EVENT_DROP_BEGIN:
+						window.dropClear();
+						break;
+					case SDLEvents.SDL_EVENT_DROP_COMPLETE:
+						window.dropCallback();
+						break;
+					case SDLEvents.SDL_EVENT_DROP_FILE:
+						window.dropFile(event.drop().dataString());
+						break;
+					case SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+						window.closeWindow();
+						break;
 					}
 					if (event.type() == SDLEvents.SDL_EVENT_QUIT) {
 						running = false;
@@ -577,7 +580,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		}
 	}
 
-	static long[] createSDLWindow(Lwjgl3ApplicationConfiguration config, Lwjgl3Window sharedContextWindow) {
+	static long[] createSDLWindow (Lwjgl3ApplicationConfiguration config, Lwjgl3Window sharedContextWindow) {
 
 		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_RED_SIZE, config.r);
 		SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_GREEN_SIZE, config.g);
@@ -624,7 +627,8 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, !config.windowDecorated);
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, config.windowResizable);
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN, config.windowMaximized);
-		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, config.transparentFramebuffer);
+		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN,
+			config.transparentFramebuffer);
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
 		SDLProperties.SDL_SetBooleanProperty(props, SDLVideo.SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
@@ -654,7 +658,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 					windowY = 0;
 				} else {
 					GridPoint2 newPos = Lwjgl3ApplicationConfiguration.calculateCenteredWindowPosition(
-							Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(monitorHandle), windowWidth, windowHeight);
+						Lwjgl3ApplicationConfiguration.toLwjgl3Monitor(monitorHandle), windowWidth, windowHeight);
 					windowX = newPos.x;
 					windowY = newPos.y;
 				}
@@ -719,7 +723,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 			setGLDebugMessageControl(GLDebugMessageSeverity.NOTIFICATION, false);
 		}
 
-		return new long[]{windowHandle, glContext};
+		return new long[] {windowHandle, glContext};
 	}
 
 	private static void initiateGL (boolean useGLES20) {

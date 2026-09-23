@@ -42,76 +42,76 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 	char lastCharacter;
 
 	@Override
-		public void charCallback (long window, int codepoint) {
-			if ((codepoint & 0xff00) == 0xf700) return;
-			lastCharacter = (char)codepoint;
-			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
-			eventQueue.keyTyped((char)codepoint, System.nanoTime());
-		}
+	public void charCallback (long window, int codepoint) {
+		if ((codepoint & 0xff00) == 0xf700) return;
+		lastCharacter = (char)codepoint;
+		DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
+		eventQueue.keyTyped((char)codepoint, System.nanoTime());
+	}
 
 	@Override
-		public void scrollCallback (long window, double scrollX, double scrollY) {
-			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
-			eventQueue.scrolled(-(float)scrollX, -(float)scrollY, System.nanoTime());
-		}
+	public void scrollCallback (long window, double scrollX, double scrollY) {
+		DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
+		eventQueue.scrolled(-(float)scrollX, -(float)scrollY, System.nanoTime());
+	}
 
-		private int cursorPosCallbackLogicalMouseY;
-		private int cursorPosCallbackLogicalMouseX;
-
-	@Override
-		public void cursorPosCallback (long windowHandle, double x, double y) {
-			deltaX = (int)x - cursorPosCallbackLogicalMouseX;
-			deltaY = (int)y - cursorPosCallbackLogicalMouseY;
-			mouseX = cursorPosCallbackLogicalMouseX = (int)x;
-			mouseY = cursorPosCallbackLogicalMouseY = (int)y;
-
-			if (window.getConfig().hdpiMode == HdpiMode.Pixels) {
-				float xScale = window.getGraphics().getBackBufferWidth() / (float)window.getGraphics().getLogicalWidth();
-				float yScale = window.getGraphics().getBackBufferHeight() / (float)window.getGraphics().getLogicalHeight();
-				deltaX = (int)(deltaX * xScale);
-				deltaY = (int)(deltaY * yScale);
-				mouseX = (int)(mouseX * xScale);
-				mouseY = (int)(mouseY * yScale);
-			}
-
-			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
-			long time = System.nanoTime();
-			if (mousePressed > 0) {
-				eventQueue.touchDragged(mouseX, mouseY, 0, time);
-			} else {
-				eventQueue.mouseMoved(mouseX, mouseY, time);
-			}
-		}
+	private int cursorPosCallbackLogicalMouseY;
+	private int cursorPosCallbackLogicalMouseX;
 
 	@Override
-		public void mouseButtonCallback (long window, int button, boolean down) {
-			int gdxButton = toGdxButton(button);
-			if (button != -1 && gdxButton == -1) return;
+	public void cursorPosCallback (long windowHandle, double x, double y) {
+		deltaX = (int)x - cursorPosCallbackLogicalMouseX;
+		deltaY = (int)y - cursorPosCallbackLogicalMouseY;
+		mouseX = cursorPosCallbackLogicalMouseX = (int)x;
+		mouseY = cursorPosCallbackLogicalMouseY = (int)y;
 
-			long time = System.nanoTime();
-			if (down) {
-				mousePressed++;
-				justTouched = true;
-				pressedButtons[gdxButton] = true;
-				justPressedButtons[gdxButton] = true;
-				DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
-				eventQueue.touchDown(mouseX, mouseY, 0, gdxButton, time);
-			} else {
-				pressedButtons[gdxButton] = true;
-				mousePressed = Math.max(0, mousePressed - 1);
-				DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
-				eventQueue.touchUp(mouseX, mouseY, 0, gdxButton, time);
-			}
+		if (window.getConfig().hdpiMode == HdpiMode.Pixels) {
+			float xScale = window.getGraphics().getBackBufferWidth() / (float)window.getGraphics().getLogicalWidth();
+			float yScale = window.getGraphics().getBackBufferHeight() / (float)window.getGraphics().getLogicalHeight();
+			deltaX = (int)(deltaX * xScale);
+			deltaY = (int)(deltaY * yScale);
+			mouseX = (int)(mouseX * xScale);
+			mouseY = (int)(mouseY * yScale);
 		}
 
-		private int toGdxButton (int button) {
-			if (button == SDLMouse.SDL_BUTTON_LEFT) return Buttons.LEFT;
-			if (button == SDLMouse.SDL_BUTTON_RIGHT) return Buttons.RIGHT;
-			if (button == SDLMouse.SDL_BUTTON_MIDDLE) return Buttons.MIDDLE;
-			if (button == SDLMouse.SDL_BUTTON_X1) return Buttons.BACK;
-			if (button == SDLMouse.SDL_BUTTON_X2) return Buttons.FORWARD;
-			return -1;
+		DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
+		long time = System.nanoTime();
+		if (mousePressed > 0) {
+			eventQueue.touchDragged(mouseX, mouseY, 0, time);
+		} else {
+			eventQueue.mouseMoved(mouseX, mouseY, time);
 		}
+	}
+
+	@Override
+	public void mouseButtonCallback (long window, int button, boolean down) {
+		int gdxButton = toGdxButton(button);
+		if (button != -1 && gdxButton == -1) return;
+
+		long time = System.nanoTime();
+		if (down) {
+			mousePressed++;
+			justTouched = true;
+			pressedButtons[gdxButton] = true;
+			justPressedButtons[gdxButton] = true;
+			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
+			eventQueue.touchDown(mouseX, mouseY, 0, gdxButton, time);
+		} else {
+			pressedButtons[gdxButton] = true;
+			mousePressed = Math.max(0, mousePressed - 1);
+			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
+			eventQueue.touchUp(mouseX, mouseY, 0, gdxButton, time);
+		}
+	}
+
+	private int toGdxButton (int button) {
+		if (button == SDLMouse.SDL_BUTTON_LEFT) return Buttons.LEFT;
+		if (button == SDLMouse.SDL_BUTTON_RIGHT) return Buttons.RIGHT;
+		if (button == SDLMouse.SDL_BUTTON_MIDDLE) return Buttons.MIDDLE;
+		if (button == SDLMouse.SDL_BUTTON_X1) return Buttons.BACK;
+		if (button == SDLMouse.SDL_BUTTON_X2) return Buttons.FORWARD;
+		return -1;
+	}
 
 	public DefaultLwjgl3Input (Lwjgl3Window window) {
 		this.window = window;
@@ -149,8 +149,8 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 	public void resetPollingStates () {
 		justTouched = false;
 		keyJustPressed = false;
-        Arrays.fill(justPressedKeys, false);
-        Arrays.fill(justPressedButtons, false);
+		Arrays.fill(justPressedKeys, false);
+		Arrays.fill(justPressedButtons, false);
 		eventQueue.drain(null);
 	}
 
@@ -168,12 +168,12 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 	public void prepareNext () {
 		if (justTouched) {
 			justTouched = false;
-            Arrays.fill(justPressedButtons, false);
+			Arrays.fill(justPressedButtons, false);
 		}
 
 		if (keyJustPressed) {
 			keyJustPressed = false;
-            Arrays.fill(justPressedKeys, false);
+			Arrays.fill(justPressedKeys, false);
 		}
 		deltaX = 0;
 		deltaY = 0;
@@ -226,7 +226,8 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 
 	@Override
 	public boolean isTouched () {
-		return pressedButtons[Buttons.LEFT] || pressedButtons[Buttons.RIGHT] || pressedButtons[Buttons.MIDDLE] || pressedButtons[Buttons.BACK] || pressedButtons[Buttons.FORWARD];
+		return pressedButtons[Buttons.LEFT] || pressedButtons[Buttons.RIGHT] || pressedButtons[Buttons.MIDDLE]
+			|| pressedButtons[Buttons.BACK] || pressedButtons[Buttons.FORWARD];
 	}
 
 	@Override
@@ -369,7 +370,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Input.Keys.NUM_9;
 		case SDLKeycode.SDLK_SEMICOLON:
 			return Input.Keys.SEMICOLON;
-			case SDLKeycode.SDLK_EQUALS:
+		case SDLKeycode.SDLK_EQUALS:
 			return Input.Keys.EQUALS;
 		case SDLKeycode.SDLK_A:
 			return Input.Keys.A;
@@ -423,7 +424,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Input.Keys.Y;
 		case SDLKeycode.SDLK_Z:
 			return Input.Keys.Z;
-			case SDLKeycode.SDLK_LEFTBRACKET:
+		case SDLKeycode.SDLK_LEFTBRACKET:
 			return Input.Keys.LEFT_BRACKET;
 		case SDLKeycode.SDLK_BACKSLASH:
 			return Input.Keys.BACKSLASH;
@@ -431,10 +432,10 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Input.Keys.RIGHT_BRACKET;
 		case SDLKeycode.SDLK_GRAVE:
 			return Input.Keys.GRAVE;
-//		case SDLKeycode.SDLK_WORLD_1: FIXME Scancode SDL_SCANCODE_NONUSBACKSLASH
-//			return Input.Keys.WORLD_1;
-//		case SDLKeycode.SDLK_WORLD_2:
-//			return Input.Keys.WORLD_2;
+// case SDLKeycode.SDLK_WORLD_1: FIXME Scancode SDL_SCANCODE_NONUSBACKSLASH
+// return Input.Keys.WORLD_1;
+// case SDLKeycode.SDLK_WORLD_2:
+// return Input.Keys.WORLD_2;
 		case SDLKeycode.SDLK_ESCAPE:
 			return Input.Keys.ESCAPE;
 		case SDLKeycode.SDLK_RETURN:
@@ -547,7 +548,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Keys.NUMPAD_DIVIDE;
 		case SDLKeycode.SDLK_KP_MULTIPLY:
 			return Keys.NUMPAD_MULTIPLY;
-			case SDLKeycode.SDLK_KP_MINUS:
+		case SDLKeycode.SDLK_KP_MINUS:
 			return Keys.NUMPAD_SUBTRACT;
 		case SDLKeycode.SDLK_KP_PLUS:
 			return Keys.NUMPAD_ADD;
@@ -561,7 +562,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Input.Keys.CONTROL_LEFT;
 		case SDLKeycode.SDLK_LALT:
 			return Input.Keys.ALT_LEFT;
-			case SDLKeycode.SDLK_LGUI:
+		case SDLKeycode.SDLK_LGUI:
 			return Input.Keys.SYM;
 		case SDLKeycode.SDLK_RSHIFT:
 			return Input.Keys.SHIFT_RIGHT;
@@ -569,7 +570,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			return Input.Keys.CONTROL_RIGHT;
 		case SDLKeycode.SDLK_RALT:
 			return Input.Keys.ALT_RIGHT;
-			case SDLKeycode.SDLK_RGUI:
+		case SDLKeycode.SDLK_RGUI:
 			return Input.Keys.SYM;
 		case SDLKeycode.SDLK_MENU:
 			return Input.Keys.MENU;

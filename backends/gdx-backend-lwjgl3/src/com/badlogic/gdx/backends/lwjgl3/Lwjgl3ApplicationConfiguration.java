@@ -21,11 +21,8 @@ import java.nio.IntBuffer;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.LifecycleListener;
-import com.badlogic.gdx.utils.Os;
-import com.badlogic.gdx.utils.SharedLibraryLoader;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.sdl.*;
-import org.lwjgl.system.Configuration;
 
 import com.badlogic.gdx.Audio;
 import com.badlogic.gdx.Files;
