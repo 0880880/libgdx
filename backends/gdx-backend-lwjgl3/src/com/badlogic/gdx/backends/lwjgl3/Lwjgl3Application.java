@@ -161,9 +161,9 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 				SDL_Event event = SDL_Event.create(eventAddress);
 				if (event.type() == SDLEvents.SDL_EVENT_WINDOW_EXPOSED) {
 					findWindow(event.window().windowID()).requestRendering();
-					return true;
+					return false;
 				}
-				return false;
+				return true;
 			}
 		}, 0);
 
