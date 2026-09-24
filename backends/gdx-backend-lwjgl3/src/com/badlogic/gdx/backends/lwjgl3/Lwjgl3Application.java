@@ -89,6 +89,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	}
 
 	static void loadANGLE () {
+		SDLHints.SDL_SetHint(SDLHints.SDL_HINT_OPENGL_ES_DRIVER, "1");
 		try {
 			Class angleLoader = Class.forName("com.badlogic.gdx.backends.lwjgl3.angle.ANGLELoader");
 			Method load = angleLoader.getMethod("load");
