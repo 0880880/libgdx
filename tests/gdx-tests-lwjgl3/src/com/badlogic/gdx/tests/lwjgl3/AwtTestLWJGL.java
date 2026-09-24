@@ -51,8 +51,6 @@ public class AwtTestLWJGL {
 			}
 		});
 
-		Lwjgl3ApplicationConfiguration.useGlfwAsync();
-
 		if (!SDLInit.SDL_Init(SDLInit.SDL_INIT_VIDEO)) {
 			System.out.println("Couldn't initialize SDL");
 			System.exit(-1);
