@@ -483,6 +483,6 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	public void flash () {
-		SDLVideo.SDL_FlashWindow(windowHandle, SDLVideo.SDL_FLASH_BRIEFLY);
+		SDLVideo.SDL_FlashWindow(windowHandle, SDLVideo.SDL_FLASH_UNTIL_FOCUSED);
 	}
 }
