@@ -9,7 +9,6 @@ import java.net.URL;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 
-import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.sdl.*;
