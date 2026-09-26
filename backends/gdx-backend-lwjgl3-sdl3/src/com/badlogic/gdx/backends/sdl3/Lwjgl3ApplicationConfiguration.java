@@ -379,7 +379,7 @@ public class Lwjgl3ApplicationConfiguration extends Lwjgl3WindowConfiguration {
 		}
 	}
 
-	static void checkError(boolean sdlOutput) {
+	static void checkError (boolean sdlOutput) {
 		if (!sdlOutput) {
 			errorStream.println(SDLError.SDL_GetError());
 		}

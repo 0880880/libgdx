@@ -352,8 +352,10 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	static void setSizeLimits (long windowHandle, int minWidth, int minHeight, int maxWidth, int maxHeight) {
-		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowMinimumSize(windowHandle, Math.max(minWidth, 0), Math.max(minHeight, 0)));
-		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowMaximumSize(windowHandle, Math.max(maxWidth, 0), Math.max(maxHeight, 0)));
+		Lwjgl3ApplicationConfiguration
+			.checkError(SDLVideo.SDL_SetWindowMinimumSize(windowHandle, Math.max(minWidth, 0), Math.max(minHeight, 0)));
+		Lwjgl3ApplicationConfiguration
+			.checkError(SDLVideo.SDL_SetWindowMaximumSize(windowHandle, Math.max(maxWidth, 0), Math.max(maxHeight, 0)));
 	}
 
 	Lwjgl3Graphics getGraphics () {
@@ -485,12 +487,9 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	public enum ProgressState {
-		None(SDLVideo.SDL_PROGRESS_STATE_NONE),
-		Invalid(SDLVideo.SDL_PROGRESS_STATE_INVALID),
-		Indeterminate(SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE),
-		Normal(SDLVideo.SDL_PROGRESS_STATE_NORMAL),
-		Paused(SDLVideo.SDL_PROGRESS_STATE_PAUSED),
-		Error(SDLVideo.SDL_PROGRESS_STATE_ERROR);
+		None(SDLVideo.SDL_PROGRESS_STATE_NONE), Invalid(SDLVideo.SDL_PROGRESS_STATE_INVALID), Indeterminate(
+			SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE), Normal(SDLVideo.SDL_PROGRESS_STATE_NORMAL), Paused(
+				SDLVideo.SDL_PROGRESS_STATE_PAUSED), Error(SDLVideo.SDL_PROGRESS_STATE_ERROR);
 
 		final int sdlState;
 
@@ -509,18 +508,18 @@ public class Lwjgl3Window implements Disposable {
 
 	public ProgressState getProgressState () {
 		switch (SDLVideo.SDL_GetWindowProgressState(windowHandle)) {
-			case SDLVideo.SDL_PROGRESS_STATE_NONE:
-				return ProgressState.None;
-			case SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE:
-				return ProgressState.Indeterminate;
-			case SDLVideo.SDL_PROGRESS_STATE_NORMAL:
-				return ProgressState.Normal;
-			case SDLVideo.SDL_PROGRESS_STATE_PAUSED:
-				return ProgressState.Paused;
-			case SDLVideo.SDL_PROGRESS_STATE_ERROR:
-				return ProgressState.Error;
-			default:
-				return ProgressState.Invalid;
+		case SDLVideo.SDL_PROGRESS_STATE_NONE:
+			return ProgressState.None;
+		case SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE:
+			return ProgressState.Indeterminate;
+		case SDLVideo.SDL_PROGRESS_STATE_NORMAL:
+			return ProgressState.Normal;
+		case SDLVideo.SDL_PROGRESS_STATE_PAUSED:
+			return ProgressState.Paused;
+		case SDLVideo.SDL_PROGRESS_STATE_ERROR:
+			return ProgressState.Error;
+		default:
+			return ProgressState.Invalid;
 		}
 	}
 
