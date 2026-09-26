@@ -13,7 +13,8 @@ public class ProgressTest extends ApplicationAdapter {
 
 	private SpriteBatch batch;
 	private Texture texture;
-	private Lwjgl3Window.ProgressState[] states = new Lwjgl3Window.ProgressState[]{Lwjgl3Window.ProgressState.Normal, Lwjgl3Window.ProgressState.Indeterminate, Lwjgl3Window.ProgressState.Error, Lwjgl3Window.ProgressState.None};
+	private Lwjgl3Window.ProgressState[] states = new Lwjgl3Window.ProgressState[] {Lwjgl3Window.ProgressState.Normal,
+		Lwjgl3Window.ProgressState.Indeterminate, Lwjgl3Window.ProgressState.Error, Lwjgl3Window.ProgressState.None};
 	private int index = 0;
 
 	@Override
