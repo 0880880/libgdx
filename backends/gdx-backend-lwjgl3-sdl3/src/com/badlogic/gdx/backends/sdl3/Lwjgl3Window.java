@@ -485,4 +485,52 @@ public class Lwjgl3Window implements Disposable {
 	public void flash () {
 		SDLVideo.SDL_FlashWindow(windowHandle, SDLVideo.SDL_FLASH_UNTIL_FOCUSED);
 	}
+
+	public enum ProgressState {
+		None(SDLVideo.SDL_PROGRESS_STATE_NONE),
+		Invalid(SDLVideo.SDL_PROGRESS_STATE_INVALID),
+		Indeterminate(SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE),
+		Normal(SDLVideo.SDL_PROGRESS_STATE_NORMAL),
+		Paused(SDLVideo.SDL_PROGRESS_STATE_PAUSED),
+		Error(SDLVideo.SDL_PROGRESS_STATE_ERROR);
+
+		final int sdlState;
+
+		ProgressState (int sdlState) {
+			this.sdlState = sdlState;
+		}
+	}
+
+	public void setProgressState (ProgressState state) {
+		if (!SDLVideo.SDL_SetWindowProgressState(windowHandle, state.sdlState)) {
+			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
+		}
+	}
+
+	public void setProgress (float value) {
+		if (!SDLVideo.SDL_SetWindowProgressValue(windowHandle, value)) {
+			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
+		}
+	}
+
+	public ProgressState getProgressState () {
+		switch (SDLVideo.SDL_GetWindowProgressState(windowHandle)) {
+			case SDLVideo.SDL_PROGRESS_STATE_NONE:
+				return ProgressState.None;
+			case SDLVideo.SDL_PROGRESS_STATE_INDETERMINATE:
+				return ProgressState.Indeterminate;
+			case SDLVideo.SDL_PROGRESS_STATE_NORMAL:
+				return ProgressState.Normal;
+			case SDLVideo.SDL_PROGRESS_STATE_PAUSED:
+				return ProgressState.Paused;
+			case SDLVideo.SDL_PROGRESS_STATE_ERROR:
+				return ProgressState.Error;
+			default:
+				return ProgressState.Invalid;
+		}
+	}
+
+	public float getProgress () {
+		return SDLVideo.SDL_GetWindowProgressValue(windowHandle);
+	}
 }
