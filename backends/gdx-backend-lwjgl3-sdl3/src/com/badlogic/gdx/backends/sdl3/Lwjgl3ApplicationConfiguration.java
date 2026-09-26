@@ -378,4 +378,10 @@ public class Lwjgl3ApplicationConfiguration extends Lwjgl3WindowConfiguration {
 			return new GridPoint2(Math.max(minX, minX + (maxX - newWidth) / 2), Math.max(minY, minY + (maxY - newHeight) / 2));
 		}
 	}
+
+	static void checkError(boolean sdlOutput) {
+		if (!sdlOutput) {
+			errorStream.println(SDLError.SDL_GetError());
+		}
+	}
 }

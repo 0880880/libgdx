@@ -233,9 +233,9 @@ public class Lwjgl3Window implements Disposable {
 	/** Sets the visibility of the window. Invisible windows will still call their {@link ApplicationListener} */
 	public void setVisible (boolean visible) {
 		if (visible) {
-			SDLVideo.SDL_ShowWindow(windowHandle);
+			Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_ShowWindow(windowHandle));
 		} else {
-			SDLVideo.SDL_HideWindow(windowHandle);
+			Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_HideWindow(windowHandle));
 		}
 	}
 
@@ -247,7 +247,7 @@ public class Lwjgl3Window implements Disposable {
 	/** Minimizes (iconifies) the window. Iconified windows do not call their {@link ApplicationListener} until the window is
 	 * restored. */
 	public void iconifyWindow () {
-		SDLVideo.SDL_MinimizeWindow(windowHandle);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_MinimizeWindow(windowHandle));
 	}
 
 	/** Whether the window is iconfieid */
@@ -257,17 +257,17 @@ public class Lwjgl3Window implements Disposable {
 
 	/** De-minimizes (de-iconifies) and de-maximizes the window. */
 	public void restoreWindow () {
-		SDLVideo.SDL_RestoreWindow(windowHandle);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_RestoreWindow(windowHandle));
 	}
 
 	/** Maximizes the window. */
 	public void maximizeWindow () {
-		SDLVideo.SDL_MaximizeWindow(windowHandle);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_MaximizeWindow(windowHandle));
 	}
 
 	/** Brings the window to front and sets input focus. The window should already be visible and not iconified. */
 	public void focusWindow () {
-		SDLVideo.SDL_RaiseWindow(windowHandle);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_RaiseWindow(windowHandle));
 	}
 
 	public boolean isFocused () {
@@ -323,13 +323,15 @@ public class Lwjgl3Window implements Disposable {
 					if (icon == null) {
 						icon = surface;
 					} else {
-						SDLSurface.SDL_AddSurfaceAlternateImage(icon, surface);
+						Lwjgl3ApplicationConfiguration.checkError(SDLSurface.SDL_AddSurfaceAlternateImage(icon, surface));
 					}
 				}
 			}
 		}
 
-		SDLVideo.SDL_SetWindowIcon(windowHandle, icon);
+		if (icon != null) {
+			Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowIcon(windowHandle, icon));
+		}
 
 		for (Pixmap pixmap : tmpPixmaps) {
 			if (pixmap != null) {
@@ -340,7 +342,7 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	public void setTitle (CharSequence title) {
-		SDLVideo.SDL_SetWindowTitle(windowHandle, title);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowTitle(windowHandle, title));
 	}
 
 	/** Sets minimum and maximum size limits for the window. If the window is full screen or not resizable, these limits are
@@ -350,12 +352,8 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	static void setSizeLimits (long windowHandle, int minWidth, int minHeight, int maxWidth, int maxHeight) {
-		if (!SDLVideo.SDL_SetWindowMinimumSize(windowHandle, Math.max(minWidth, 0), Math.max(minHeight, 0))) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
-		if (!SDLVideo.SDL_SetWindowMaximumSize(windowHandle, Math.max(maxWidth, 0), Math.max(maxHeight, 0))) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowMinimumSize(windowHandle, Math.max(minWidth, 0), Math.max(minHeight, 0)));
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowMaximumSize(windowHandle, Math.max(maxWidth, 0), Math.max(maxHeight, 0)));
 	}
 
 	Lwjgl3Graphics getGraphics () {
@@ -408,7 +406,7 @@ public class Lwjgl3Window implements Disposable {
 		if (shouldRender) {
 			graphics.update();
 			listener.render();
-			SDLVideo.SDL_GL_SwapWindow(windowHandle);
+			Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_GL_SwapWindow(windowHandle));
 		}
 
 		if (!iconified) input.prepareNext();
@@ -451,7 +449,7 @@ public class Lwjgl3Window implements Disposable {
 		Gdx.gl = Gdx.gl20;
 		Gdx.input = input;
 
-		SDLVideo.SDL_GL_MakeCurrent(windowHandle, glContext);
+		Lwjgl3ApplicationConfiguration.checkError((SDLVideo.SDL_GL_MakeCurrent(windowHandle, glContext)));
 	}
 
 	@Override
@@ -483,7 +481,7 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	public void flash () {
-		SDLVideo.SDL_FlashWindow(windowHandle, SDLVideo.SDL_FLASH_UNTIL_FOCUSED);
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_FlashWindow(windowHandle, SDLVideo.SDL_FLASH_UNTIL_FOCUSED));
 	}
 
 	public enum ProgressState {
@@ -502,15 +500,11 @@ public class Lwjgl3Window implements Disposable {
 	}
 
 	public void setProgressState (ProgressState state) {
-		if (!SDLVideo.SDL_SetWindowProgressState(windowHandle, state.sdlState)) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
+		Lwjgl3ApplicationConfiguration.checkError(SDLVideo.SDL_SetWindowProgressState(windowHandle, state.sdlState));
 	}
 
 	public void setProgress (float value) {
-		if (!SDLVideo.SDL_SetWindowProgressValue(windowHandle, value)) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
+		Lwjgl3ApplicationConfiguration.checkError((SDLVideo.SDL_SetWindowProgressValue(windowHandle, value)));
 	}
 
 	public ProgressState getProgressState () {
