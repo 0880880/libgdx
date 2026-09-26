@@ -97,7 +97,7 @@ public class DefaultLwjgl3Input extends AbstractInput implements Lwjgl3Input {
 			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
 			eventQueue.touchDown(mouseX, mouseY, 0, gdxButton, time);
 		} else {
-			pressedButtons[gdxButton] = true;
+			pressedButtons[gdxButton] = false;
 			mousePressed = Math.max(0, mousePressed - 1);
 			DefaultLwjgl3Input.this.window.getGraphics().requestRendering();
 			eventQueue.touchUp(mouseX, mouseY, 0, gdxButton, time);
