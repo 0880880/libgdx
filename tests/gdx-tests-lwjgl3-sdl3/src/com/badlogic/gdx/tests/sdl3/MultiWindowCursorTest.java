@@ -1,5 +1,5 @@
 
-package com.badlogic.gdx.tests.lwjgl3;
+package com.badlogic.gdx.tests.sdl3;
 
 import com.badlogic.gdx.*;
 import com.badlogic.gdx.backends.sdl3.*;
