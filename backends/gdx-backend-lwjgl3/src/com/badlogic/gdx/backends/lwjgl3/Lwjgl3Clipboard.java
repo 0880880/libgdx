@@ -16,10 +16,12 @@
 
 package com.badlogic.gdx.backends.lwjgl3;
 
-import com.badlogic.gdx.utils.Clipboard;
-import org.lwjgl.sdl.SDLClipboard;
+import org.lwjgl.glfw.GLFW;
 
-/** Clipboard implementation for desktop that uses the system clipboard via SDL.
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.utils.Clipboard;
+
+/** Clipboard implementation for desktop that uses the system clipboard via GLFW.
  * @author mzechner */
 public class Lwjgl3Clipboard implements Clipboard {
 	@Override
@@ -30,11 +32,11 @@ public class Lwjgl3Clipboard implements Clipboard {
 
 	@Override
 	public String getContents () {
-		return SDLClipboard.SDL_GetClipboardText();
+		return GLFW.glfwGetClipboardString(((Lwjgl3Graphics)Gdx.graphics).getWindow().getWindowHandle());
 	}
 
 	@Override
 	public void setContents (String content) {
-		SDLClipboard.SDL_SetClipboardText(content);
+		GLFW.glfwSetClipboardString(((Lwjgl3Graphics)Gdx.graphics).getWindow().getWindowHandle(), content);
 	}
 }

@@ -19,12 +19,14 @@ package com.badlogic.gdx.backends.lwjgl3;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWImage;
+
 import com.badlogic.gdx.graphics.Cursor;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Pixmap.Blending;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
-import org.lwjgl.sdl.*;
 
 public class Lwjgl3Cursor implements Cursor {
 	static final Array<Lwjgl3Cursor> cursors = new Array<Lwjgl3Cursor>();
@@ -34,8 +36,8 @@ public class Lwjgl3Cursor implements Cursor {
 
 	final Lwjgl3Window window;
 	Pixmap pixmapCopy;
-	SDL_Surface sdlSurface;
-	final long sdlCursor;
+	GLFWImage glfwImage;
+	final long glfwCursor;
 
 	Lwjgl3Cursor (Lwjgl3Window window, Pixmap pixmap, int xHotspot, int yHotspot) {
 		this.window = window;
@@ -67,15 +69,12 @@ public class Lwjgl3Cursor implements Cursor {
 		this.pixmapCopy.setBlending(Blending.None);
 		this.pixmapCopy.drawPixmap(pixmap, 0, 0);
 
-		sdlSurface = SDLSurface.SDL_CreateSurfaceFrom(pixmapCopy.getWidth(), pixmapCopy.getHeight(),
-			SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixmapCopy.getPixels(), pixmapCopy.getWidth());
-		if (sdlSurface != null) {
-			sdlCursor = SDLMouse.SDL_CreateColorCursor(sdlSurface, xHotspot, yHotspot);
-			cursors.add(this);
-		} else {
-			sdlCursor = 0;
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
+		glfwImage = GLFWImage.malloc();
+		glfwImage.width(pixmapCopy.getWidth());
+		glfwImage.height(pixmapCopy.getHeight());
+		glfwImage.pixels(pixmapCopy.getPixels());
+		glfwCursor = GLFW.glfwCreateCursor(glfwImage, xHotspot, yHotspot);
+		cursors.add(this);
 	}
 
 	@Override
@@ -86,8 +85,8 @@ public class Lwjgl3Cursor implements Cursor {
 		cursors.removeValue(this, true);
 		pixmapCopy.dispose();
 		pixmapCopy = null;
-		SDLSurface.SDL_DestroySurface(sdlSurface);
-		SDLMouse.SDL_DestroyCursor(sdlCursor);
+		glfwImage.free();
+		GLFW.glfwDestroyCursor(glfwCursor);
 	}
 
 	static void dispose (Lwjgl3Window window) {
@@ -101,41 +100,43 @@ public class Lwjgl3Cursor implements Cursor {
 
 	static void disposeSystemCursors () {
 		for (long systemCursor : systemCursors.values()) {
-			SDLMouse.SDL_DestroyCursor(systemCursor);
+			GLFW.glfwDestroyCursor(systemCursor);
 		}
 		systemCursors.clear();
 	}
 
-	static void setSystemCursor (Lwjgl3Window window, SystemCursor systemCursor) {
+	static void setSystemCursor (long windowHandle, SystemCursor systemCursor) {
 		if (systemCursor == SystemCursor.None) {
-			SDLMouse.SDL_HideCursor();
+			if (inputModeBeforeNoneCursor == -1) inputModeBeforeNoneCursor = GLFW.glfwGetInputMode(windowHandle, GLFW.GLFW_CURSOR);
+			GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
 			return;
-		} else {
-			SDLMouse.SDL_ShowCursor();
+		} else if (inputModeBeforeNoneCursor != -1) {
+			GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, inputModeBeforeNoneCursor);
+			inputModeBeforeNoneCursor = -1;
 		}
-		Long sdlCursor = systemCursors.get(systemCursor);
-		if (sdlCursor == null) {
+		Long glfwCursor = systemCursors.get(systemCursor);
+		if (glfwCursor == null) {
 			long handle = 0;
 			if (systemCursor == SystemCursor.Arrow) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_DEFAULT);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
 			} else if (systemCursor == SystemCursor.Crosshair) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_CROSSHAIR);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_CROSSHAIR_CURSOR);
 			} else if (systemCursor == SystemCursor.Hand) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_POINTER);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HAND_CURSOR);
 			} else if (systemCursor == SystemCursor.HorizontalResize) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_NS_RESIZE);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HRESIZE_CURSOR);
 			} else if (systemCursor == SystemCursor.VerticalResize) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_EW_RESIZE);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_VRESIZE_CURSOR);
 			} else if (systemCursor == SystemCursor.Ibeam) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_TEXT);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
 			} else if (systemCursor == SystemCursor.NWSEResize) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_NWSE_RESIZE);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NWSE_CURSOR);
 			} else if (systemCursor == SystemCursor.NESWResize) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_NESW_RESIZE);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NESW_CURSOR);
 			} else if (systemCursor == SystemCursor.AllResize) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_MOVE);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_ALL_CURSOR);
 			} else if (systemCursor == SystemCursor.NotAllowed) {
-				handle = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_NOT_ALLOWED);
+				handle = GLFW.glfwCreateStandardCursor(GLFW.GLFW_NOT_ALLOWED_CURSOR);
 			} else {
 				throw new GdxRuntimeException("Unknown system cursor " + systemCursor);
 			}
@@ -143,9 +144,9 @@ public class Lwjgl3Cursor implements Cursor {
 			if (handle == 0) {
 				return;
 			}
-			sdlCursor = handle;
-			systemCursors.put(systemCursor, sdlCursor);
+			glfwCursor = handle;
+			systemCursors.put(systemCursor, glfwCursor);
 		}
-		window.currentCursor = sdlCursor;
+		GLFW.glfwSetCursor(windowHandle, glfwCursor);
 	}
 }

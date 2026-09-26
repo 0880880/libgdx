@@ -21,8 +21,14 @@ import java.nio.IntBuffer;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.LifecycleListener;
+import com.badlogic.gdx.utils.Os;
+import com.badlogic.gdx.utils.SharedLibraryLoader;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.sdl.*;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWVidMode;
+import org.lwjgl.glfw.GLFWVidMode.Buffer;
+import org.lwjgl.system.Configuration;
 
 import com.badlogic.gdx.Audio;
 import com.badlogic.gdx.Files;
@@ -36,7 +42,6 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.glutils.HdpiMode;
 import com.badlogic.gdx.graphics.glutils.HdpiUtils;
 import com.badlogic.gdx.math.GridPoint2;
-import org.lwjgl.system.MemoryStack;
 
 public class Lwjgl3ApplicationConfiguration extends Lwjgl3WindowConfiguration {
 	public static PrintStream errorStream = System.err;
@@ -266,116 +271,118 @@ public class Lwjgl3ApplicationConfiguration extends Lwjgl3WindowConfiguration {
 		debugStream = debugOutputStream;
 	}
 
+	/** Whether to use the "glfw_async" library. This method only does something on mac operating system.
+	 *
+	 * This means you do not have to set the JVM argument "-XstartOnFirstThread"
+	 *
+	 * @see <a href= "https://libgdx.com/news/2021/07/devlog-7-lwjgl3#do-i-need-to-do-anything-else"> Documentation</a> */
+	public static void useGlfwAsync () {
+		if (SharedLibraryLoader.os == Os.MacOsX) {
+			Configuration.GLFW_LIBRARY_NAME.set("glfw_async");
+		}
+	}
+
 	/** @return the currently active {@link DisplayMode} of the primary monitor */
 	public static DisplayMode getDisplayMode () {
-		Lwjgl3Application.initializeSDL();
-		SDL_DisplayMode displayMode = SDLVideo.SDL_GetCurrentDisplayMode(SDLVideo.SDL_GetPrimaryDisplay());
-		if (displayMode == null) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
-		return new Lwjgl3Graphics.Lwjgl3DisplayMode(displayMode);
+		Lwjgl3Application.initializeGlfw();
+		GLFWVidMode videoMode = GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor());
+		return new Lwjgl3Graphics.Lwjgl3DisplayMode(GLFW.glfwGetPrimaryMonitor(), videoMode.width(), videoMode.height(),
+			videoMode.refreshRate(), videoMode.redBits() + videoMode.greenBits() + videoMode.blueBits());
 	}
 
 	/** @return the currently active {@link DisplayMode} of the given monitor */
 	public static DisplayMode getDisplayMode (Monitor monitor) {
-		Lwjgl3Application.initializeSDL();
-		SDL_DisplayMode displayMode = SDLVideo.SDL_GetCurrentDisplayMode(((Lwjgl3Monitor)monitor).monitorHandle);
-		if (displayMode == null) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
-		return new Lwjgl3Graphics.Lwjgl3DisplayMode(displayMode);
+		Lwjgl3Application.initializeGlfw();
+		GLFWVidMode videoMode = GLFW.glfwGetVideoMode(((Lwjgl3Monitor)monitor).monitorHandle);
+		return new Lwjgl3Graphics.Lwjgl3DisplayMode(((Lwjgl3Monitor)monitor).monitorHandle, videoMode.width(), videoMode.height(),
+			videoMode.refreshRate(), videoMode.redBits() + videoMode.greenBits() + videoMode.blueBits());
 	}
 
 	/** @return the available {@link DisplayMode}s of the primary monitor */
 	public static DisplayMode[] getDisplayModes () {
-		Lwjgl3Application.initializeSDL();
-		PointerBuffer displayModes = SDLVideo.SDL_GetFullscreenDisplayModes(SDLVideo.SDL_GetPrimaryDisplay());
-		if (displayModes == null) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
-		DisplayMode[] result = new DisplayMode[displayModes.limit()];
+		Lwjgl3Application.initializeGlfw();
+		Buffer videoModes = GLFW.glfwGetVideoModes(GLFW.glfwGetPrimaryMonitor());
+		DisplayMode[] result = new DisplayMode[videoModes.limit()];
 		for (int i = 0; i < result.length; i++) {
-			SDL_DisplayMode displayMode = SDL_DisplayMode.create(displayModes.get(i));
-			result[i] = new Lwjgl3Graphics.Lwjgl3DisplayMode(displayMode);
+			GLFWVidMode videoMode = videoModes.get(i);
+			result[i] = new Lwjgl3Graphics.Lwjgl3DisplayMode(GLFW.glfwGetPrimaryMonitor(), videoMode.width(), videoMode.height(),
+				videoMode.refreshRate(), videoMode.redBits() + videoMode.greenBits() + videoMode.blueBits());
 		}
-		SDLStdinc.SDL_free(displayModes);
 		return result;
 	}
 
 	/** @return the available {@link DisplayMode}s of the given {@link Monitor} */
 	public static DisplayMode[] getDisplayModes (Monitor monitor) {
-		Lwjgl3Application.initializeSDL();
-		PointerBuffer displayModes = SDLVideo.SDL_GetFullscreenDisplayModes(((Lwjgl3Monitor)monitor).monitorHandle);
-		if (displayModes == null) {
-			Lwjgl3ApplicationConfiguration.errorStream.println(SDLError.SDL_GetError());
-		}
-		DisplayMode[] result = new DisplayMode[displayModes.limit()];
+		Lwjgl3Application.initializeGlfw();
+		Buffer videoModes = GLFW.glfwGetVideoModes(((Lwjgl3Monitor)monitor).monitorHandle);
+		DisplayMode[] result = new DisplayMode[videoModes.limit()];
 		for (int i = 0; i < result.length; i++) {
-			SDL_DisplayMode displayMode = SDL_DisplayMode.create(displayModes.get(i));
-			result[i] = new Lwjgl3Graphics.Lwjgl3DisplayMode(displayMode); // Must copy
+			GLFWVidMode videoMode = videoModes.get(i);
+			result[i] = new Lwjgl3Graphics.Lwjgl3DisplayMode(((Lwjgl3Monitor)monitor).monitorHandle, videoMode.width(),
+				videoMode.height(), videoMode.refreshRate(), videoMode.redBits() + videoMode.greenBits() + videoMode.blueBits());
 		}
-		SDLStdinc.SDL_free(displayModes);
 		return result;
 	}
 
 	/** @return the primary {@link Monitor} */
 	public static Monitor getPrimaryMonitor () {
-		Lwjgl3Application.initializeSDL();
-		return toLwjgl3Monitor(SDLVideo.SDL_GetPrimaryDisplay());
+		Lwjgl3Application.initializeGlfw();
+		return toLwjgl3Monitor(GLFW.glfwGetPrimaryMonitor());
 	}
 
 	/** @return the connected {@link Monitor}s */
 	public static Monitor[] getMonitors () {
-		Lwjgl3Application.initializeSDL();
-		IntBuffer sdlDisplays = SDLVideo.SDL_GetDisplays();
-		Monitor[] monitors = new Monitor[sdlDisplays.limit()];
-		for (int i = 0; i < sdlDisplays.limit(); i++) {
-			monitors[i] = toLwjgl3Monitor(sdlDisplays.get(i));
+		Lwjgl3Application.initializeGlfw();
+		PointerBuffer glfwMonitors = GLFW.glfwGetMonitors();
+		Monitor[] monitors = new Monitor[glfwMonitors.limit()];
+		for (int i = 0; i < glfwMonitors.limit(); i++) {
+			monitors[i] = toLwjgl3Monitor(glfwMonitors.get(i));
 		}
-		SDLStdinc.SDL_free(sdlDisplays);
 		return monitors;
 	}
 
-	static Lwjgl3Monitor toLwjgl3Monitor (int sdlDisplay) {
-		try (MemoryStack stack = MemoryStack.stackPush()) {
-			SDL_Rect rect = SDL_Rect.malloc(stack);
-			SDLVideo.SDL_GetDisplayBounds(sdlDisplay, rect);
-			String name = SDLVideo.SDL_GetDisplayName(sdlDisplay);
-			return new Lwjgl3Monitor(sdlDisplay, rect.x(), rect.y(), name);
-		}
+	static Lwjgl3Monitor toLwjgl3Monitor (long glfwMonitor) {
+		IntBuffer tmp = BufferUtils.createIntBuffer(1);
+		IntBuffer tmp2 = BufferUtils.createIntBuffer(1);
+		GLFW.glfwGetMonitorPos(glfwMonitor, tmp, tmp2);
+		int virtualX = tmp.get(0);
+		int virtualY = tmp2.get(0);
+		String name = GLFW.glfwGetMonitorName(glfwMonitor);
+		return new Lwjgl3Monitor(glfwMonitor, virtualX, virtualY, name);
 	}
 
 	static GridPoint2 calculateCenteredWindowPosition (Lwjgl3Monitor monitor, int newWidth, int newHeight) {
+		IntBuffer tmp = BufferUtils.createIntBuffer(1);
+		IntBuffer tmp2 = BufferUtils.createIntBuffer(1);
+		IntBuffer tmp3 = BufferUtils.createIntBuffer(1);
+		IntBuffer tmp4 = BufferUtils.createIntBuffer(1);
+
 		DisplayMode displayMode = getDisplayMode(monitor);
 
-		try (MemoryStack stack = MemoryStack.stackPush()) {
-			SDL_Rect rect = SDL_Rect.malloc(stack);
-			SDLVideo.SDL_GetDisplayUsableBounds(monitor.monitorHandle, rect);
+		GLFW.glfwGetMonitorWorkarea(monitor.monitorHandle, tmp, tmp2, tmp3, tmp4);
+		int workareaWidth = tmp3.get(0);
+		int workareaHeight = tmp4.get(0);
 
-			int workareaWidth = rect.w();
-			int workareaHeight = rect.h();
+		int minX, minY, maxX, maxY;
 
-			int minX, minY, maxX, maxY;
-
-			// If the new width is greater than the working area, we have to ignore stuff like the taskbar for centering and use the
-			// whole monitor's size
-			if (newWidth > workareaWidth) {
-				minX = monitor.virtualX;
-				maxX = displayMode.width;
-			} else {
-				minX = rect.x();
-				maxX = workareaWidth;
-			}
-			// The same is true for height
-			if (newHeight > workareaHeight) {
-				minY = monitor.virtualY;
-				maxY = displayMode.height;
-			} else {
-				minY = rect.y();
-				maxY = workareaHeight;
-			}
-
-			return new GridPoint2(Math.max(minX, minX + (maxX - newWidth) / 2), Math.max(minY, minY + (maxY - newHeight) / 2));
+		// If the new width is greater than the working area, we have to ignore stuff like the taskbar for centering and use the
+		// whole monitor's size
+		if (newWidth > workareaWidth) {
+			minX = monitor.virtualX;
+			maxX = displayMode.width;
+		} else {
+			minX = tmp.get(0);
+			maxX = workareaWidth;
 		}
+		// The same is true for height
+		if (newHeight > workareaHeight) {
+			minY = monitor.virtualY;
+			maxY = displayMode.height;
+		} else {
+			minY = tmp2.get(0);
+			maxY = workareaHeight;
+		}
+
+		return new GridPoint2(Math.max(minX, minX + (maxX - newWidth) / 2), Math.max(minY, minY + (maxY - newHeight) / 2));
 	}
 }

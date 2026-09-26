@@ -32,10 +32,7 @@
 
 package com.badlogic.gdx.backends.lwjgl3;
 
-import org.lwjgl.BufferUtils;
-import org.lwjgl.sdl.SDLTime;
-
-import java.nio.LongBuffer;
+import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 /** A highly accurate sync method that continually adapts to the system it runs on to provide reliable results.
  *
@@ -56,10 +53,8 @@ class Sync {
 	private RunningAvg sleepDurations = new RunningAvg(10);
 	private RunningAvg yieldDurations = new RunningAvg(10);
 
-	LongBuffer tmp;
-
 	public Sync () {
-		tmp = BufferUtils.createLongBuffer(1);
+
 	}
 
 	/** An accurate sync method that will attempt to run at a constant frame rate. It should be called once every frame.
@@ -129,8 +124,7 @@ class Sync {
 	 *
 	 * @return will return the current time in nano's */
 	private long getTime () {
-		SDLTime.SDL_GetCurrentTime(tmp);
-		return tmp.get(0);
+		return (long)(glfwGetTime() * NANOS_IN_SECOND);
 	}
 
 	private class RunningAvg {
