@@ -134,20 +134,20 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		if (!config.disableAudio) {
 			try {
 				this.audio = createAudio(config);
-				audioThread = new Thread(() -> {
-                    while (true) {
+				audioThread = new Thread( () -> {
+					while (true) {
 						try {
 							audio.updateBuffers();
 						} catch (Throwable t) {
 							log("Lwjgl3Application", "Audio update failed", t);
 						}
-                        try {
-                            Thread.sleep(20);
-                        } catch (InterruptedException ignored) {
-                            return;
-                        }
-                    }
-                });
+						try {
+							Thread.sleep(20);
+						} catch (InterruptedException ignored) {
+							return;
+						}
+					}
+				});
 				audioThread.setPriority(Thread.MAX_PRIORITY);
 				audioThread.setDaemon(true);
 				try {
@@ -276,8 +276,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 	protected void cleanup () {
 		Lwjgl3Cursor.disposeSystemCursors();
-		if (audioThread != null)
-			audioThread.interrupt();
+		if (audioThread != null) audioThread.interrupt();
 		audio.dispose();
 		errorCallback.free();
 		errorCallback = null;

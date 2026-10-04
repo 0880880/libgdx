@@ -20,7 +20,6 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
-import com.badlogic.gdx.Gdx;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL11;
 
@@ -235,7 +234,7 @@ public abstract class OpenALMusic implements Music {
 		return sampleRate;
 	}
 
-	public void updateBuffers() {
+	public void updateBuffers () {
 		synchronized (this) {
 			if (audio.noDevice) return;
 			if (sourceID == -1) return;
