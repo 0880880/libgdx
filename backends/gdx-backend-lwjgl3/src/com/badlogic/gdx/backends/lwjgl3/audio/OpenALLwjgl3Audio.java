@@ -311,6 +311,13 @@ public class OpenALLwjgl3Audio implements Lwjgl3Audio {
 	}
 
 	@Override
+	public void updateBuffers () {
+		if (noDevice) return;
+		for (int i = 0; i < music.size; i++)
+			music.items[i].updateBuffers();
+	}
+
+	@Override
 	public void update () {
 		if (noDevice) return;
 		for (int i = 0; i < music.size; i++)

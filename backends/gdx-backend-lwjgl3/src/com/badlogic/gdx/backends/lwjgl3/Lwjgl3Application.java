@@ -77,6 +77,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	private static GLVersion glVersion;
 	private static Callback glDebugCallback;
 	private final Sync sync;
+	private final Thread audioThread;
 
 	static void initializeGlfw () {
 		if (errorCallback == null) {
@@ -129,9 +130,31 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		if (config.title == null) config.title = listener.getClass().getSimpleName();
 
 		Gdx.app = this;
+		Thread audioThread = null;
 		if (!config.disableAudio) {
 			try {
 				this.audio = createAudio(config);
+				audioThread = new Thread(() -> {
+                    while (true) {
+						try {
+							audio.updateBuffers();
+						} catch (Throwable t) {
+							log("Lwjgl3Application", "Audio update failed", t);
+						}
+                        try {
+                            Thread.sleep(20);
+                        } catch (InterruptedException ignored) {
+                            return;
+                        }
+                    }
+                });
+				audioThread.setPriority(Thread.MAX_PRIORITY);
+				audioThread.setDaemon(true);
+				try {
+					audioThread.start();
+				} catch (Throwable t) {
+					audioThread = null;
+				}
 			} catch (Throwable t) {
 				log("Lwjgl3Application", "Couldn't initialize audio, disabling audio", t);
 				this.audio = new MockAudio();
@@ -139,6 +162,7 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 		} else {
 			this.audio = new MockAudio();
 		}
+		this.audioThread = audioThread;
 		Gdx.audio = audio;
 		this.files = Gdx.files = createFiles();
 		this.net = Gdx.net = new Lwjgl3Net(config);
@@ -165,7 +189,9 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 	protected void loop () {
 		Array<Lwjgl3Window> closedWindows = new Array<Lwjgl3Window>();
 		while (running && windows.size > 0) {
-			// FIXME put it on a separate thread
+			if (this.audioThread == null) {
+				audio.updateBuffers();
+			}
 			audio.update();
 
 			boolean haveWindowsRendered = false;
@@ -250,6 +276,8 @@ public class Lwjgl3Application implements Lwjgl3ApplicationBase {
 
 	protected void cleanup () {
 		Lwjgl3Cursor.disposeSystemCursors();
+		if (audioThread != null)
+			audioThread.interrupt();
 		audio.dispose();
 		errorCallback.free();
 		errorCallback = null;

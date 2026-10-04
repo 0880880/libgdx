@@ -20,6 +20,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
+import com.badlogic.gdx.Gdx;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL11;
 
@@ -48,6 +49,7 @@ public abstract class OpenALMusic implements Music {
 	private float volume = 1;
 	private float pan = 0;
 	private float renderedSeconds, maxSecondsPerBuffer;
+	private boolean end = false;
 
 	protected final FileHandle file;
 
@@ -71,6 +73,7 @@ public abstract class OpenALMusic implements Music {
 
 	public void play () {
 		if (audio.noDevice) return;
+		end = false;
 		if (sourceID == -1) {
 			sourceID = audio.obtainSource(true);
 			if (sourceID == -1) return;
@@ -114,6 +117,7 @@ public abstract class OpenALMusic implements Music {
 	public void stop () {
 		if (audio.noDevice) return;
 		if (sourceID == -1) return;
+		end = false;
 		audio.music.removeValue(this, true);
 		reset();
 		audio.freeSource(sourceID);
@@ -231,29 +235,42 @@ public abstract class OpenALMusic implements Music {
 		return sampleRate;
 	}
 
+	public void updateBuffers() {
+		synchronized (this) {
+			if (audio.noDevice) return;
+			if (sourceID == -1) return;
+
+			int buffers = alGetSourcei(sourceID, AL_BUFFERS_PROCESSED);
+			while (buffers-- > 0) {
+				int bufferID = alSourceUnqueueBuffers(sourceID);
+				if (bufferID == AL_INVALID_VALUE) break;
+				if (renderedSecondsQueue.size > 0) renderedSeconds = renderedSecondsQueue.pop();
+				if (end) continue;
+				if (fill(bufferID))
+					alSourceQueueBuffers(sourceID, bufferID);
+				else
+					end = true;
+			}
+		}
+	}
+
 	public void update () {
-		if (audio.noDevice) return;
-		if (sourceID == -1) return;
+		OnCompletionListener completed = null;
+		synchronized (this) {
+			if (audio.noDevice) return;
+			if (sourceID == -1) return;
 
-		boolean end = false;
-		int buffers = alGetSourcei(sourceID, AL_BUFFERS_PROCESSED);
-		while (buffers-- > 0) {
-			int bufferID = alSourceUnqueueBuffers(sourceID);
-			if (bufferID == AL_INVALID_VALUE) break;
-			if (renderedSecondsQueue.size > 0) renderedSeconds = renderedSecondsQueue.pop();
-			if (end) continue;
-			if (fill(bufferID))
-				alSourceQueueBuffers(sourceID, bufferID);
-			else
-				end = true;
-		}
-		if (end && alGetSourcei(sourceID, AL_BUFFERS_QUEUED) == 0) {
-			stop();
-			if (onCompletionListener != null) onCompletionListener.onCompletion(this);
-		}
+			if (end && alGetSourcei(sourceID, AL_BUFFERS_QUEUED) == 0) {
+				stop();
+				completed = onCompletionListener;
+			}
 
-		// A buffer underflow will cause the source to stop.
-		if (isPlaying && alGetSourcei(sourceID, AL_SOURCE_STATE) != AL_PLAYING) alSourcePlay(sourceID);
+			// A buffer underflow will cause the source to stop.
+			if (isPlaying && alGetSourcei(sourceID, AL_SOURCE_STATE) != AL_PLAYING) alSourcePlay(sourceID);
+		}
+		if (completed != null) {
+			onCompletionListener.onCompletion(this);
+		}
 	}
 
 	private boolean fill (int bufferID) {

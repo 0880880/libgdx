@@ -5,5 +5,7 @@ import com.badlogic.gdx.Audio;
 
 public interface Lwjgl3Audio extends Audio {
 
+	void updateBuffers ();
+
 	void update ();
 }
